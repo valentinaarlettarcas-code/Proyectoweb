@@ -63,7 +63,7 @@ class LogoutView(APIView):
         return Response({
             "mensaje": "Sesión cerrada correctamente."
         })
-        
+
 class ListaUsuariosView(generics.ListAPIView):
     queryset = Usuario.objects.all().order_by('id')
     serializer_class = UsuarioSerializer
@@ -142,3 +142,25 @@ class DesbloquearUsuarioView(APIView):
         usuario.save(update_fields=['estado'])
 
         return Response({"mensaje": "Usuario desbloqueado correctamente."})
+
+class VerificarTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        usuario = request.user
+
+        if usuario.estado != Usuario.Estado.ACTIVO:
+            return Response(
+                {"valido": False, "error": "Usuario no activo."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return Response({
+            "valido": True,
+            "usuario": {
+                "id": usuario.id,
+                "email": usuario.email,
+                "rol": usuario.rol,
+                "estado": usuario.estado,
+            }
+        })
