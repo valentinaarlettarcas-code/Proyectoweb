@@ -237,5 +237,50 @@ class TestInventario(unittest.TestCase):
         self.db.productos.update_one.assert_not_called()
 
 
+
+    def test_reserva_varios_productos_falla(self):
+        self.db.reservas.find_one.return_value = None
+
+        self.db.productos.update_one.side_effect = [
+            MagicMock(modified_count=1),
+            MagicMock(modified_count=0)
+        ]
+
+        with self.assertRaises(ValueError):
+            reservar_stock(
+                self.db,
+                "RES-014",
+                "ORD-014",
+                [
+                    {"producto_id": 1, "cantidad": 2},
+                    {"producto_id": 2, "cantidad": 99}
+                ]
+            )
+
+        self.assertEqual(
+            self.db.productos.update_one.call_count, 2
+        )
+
+        self.db.reservas.insert_one.assert_not_called()
+        self.session.with_transaction.assert_called_once()
+
+    def test_reserva_no_descontar_stock_fisico(self):
+        self.db.reservas.find_one.return_value = None
+
+        reservar_stock(
+            self.db,
+            "RES-015",
+            "ORD-015",
+            [{"producto_id": 1, "cantidad": 2}]
+        )
+
+        cambios = self.db.productos.update_one.call_args.args[1]
+
+        self.assertEqual(
+            cambios,
+            {"$inc": {"stock_reservado": 2}}
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
