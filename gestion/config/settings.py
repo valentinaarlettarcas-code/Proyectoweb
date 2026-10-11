@@ -141,3 +141,6 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
 }
+
+
+INSTALLED_APPS += ['contacto']
