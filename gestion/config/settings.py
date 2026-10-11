@@ -144,3 +144,4 @@ REST_FRAMEWORK = {
 
 
 INSTALLED_APPS += ['contacto']
+INSTALLED_APPS += ['temas']
