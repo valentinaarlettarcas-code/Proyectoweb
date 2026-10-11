@@ -69,21 +69,21 @@ def _cambiar_estado(db, reserva_id, nuevo_estado, motivo=None):
 
             filtro = {
                 "id": producto_id,
-                "stock_reservado": {"$gte": cantidad}
+                "stock.reservado": {"$gte": cantidad},
+                "stock.disponible": {"$gte": 0}
             }
 
             if nuevo_estado == "CONSOLIDADA":
-                filtro["stock_fisico"] = {"$gte": cantidad}
+                # La venta reduce el stock físico total, no el disponible.
                 cambios = {
-                    "$inc": {
-                        "stock_fisico": -cantidad,
-                        "stock_reservado": -cantidad
-                    }
+                    "$inc": {"stock.reservado": -cantidad}
                 }
             else:
+                # Devolver unidades reservadas al stock disponible.
                 cambios = {
                     "$inc": {
-                        "stock_reservado": -cantidad
+                        "stock.reservado": -cantidad,
+                        "stock.disponible": cantidad
                     }
                 }
 

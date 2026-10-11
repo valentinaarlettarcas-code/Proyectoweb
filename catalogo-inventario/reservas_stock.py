@@ -97,22 +97,13 @@ def reservar_stock(db, reserva_id, orden_id, productos):
                 {
                     "id": producto["producto_id"],
                     "activo": True,
-                    "stock_reservado": {"$gte": 0},
-                    "$expr": {
-                        "$gte": [
-                            {
-                                "$subtract": [
-                                    "$stock_fisico",
-                                    "$stock_reservado"
-                                ]
-                            },
-                            cantidad
-                        ]
-                    }
+                    "stock.reservado": {"$gte": 0},
+                    "stock.disponible": {"$gte": cantidad}
                 },
                 {
                     "$inc": {
-                        "stock_reservado": cantidad
+                        "stock.reservado": cantidad,
+                        "stock.disponible": -cantidad
                     }
                 },
                 session=session
@@ -150,13 +141,15 @@ def reservar_stock(db, reserva_id, orden_id, productos):
             )
 
     except DuplicateKeyError:
-        # Otra solicitud pudo crear la misma reserva.
+        # Otra solicitud pudo crear la misma reserva u otra con esa orden.
         existente = db.reservas.find_one({"_id": reserva_id})
-
         if (existente and
                 existente["orden_id"] == orden_id and
                 existente["productos"] == lineas):
             return existente
+
+        if db.reservas.find_one({"orden_id": orden_id}) is not None:
+            raise ValueError("La orden ya tiene otra reserva")
 
         raise ValueError("Identificador de reserva duplicado")
 

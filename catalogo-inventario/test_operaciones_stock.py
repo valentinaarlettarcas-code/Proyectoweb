@@ -123,7 +123,7 @@ class TestInventario(unittest.TestCase):
 
         self.db.productos.update_one.assert_not_called()
 
-    def test_liberacion_no_modifica_stock_fisico(self):
+    def test_liberacion_devuelve_stock_disponible(self):
         self.db.reservas.find_one.return_value = {
             "_id": "RES-008",
             "orden_id": "ORD-008",
@@ -139,10 +139,10 @@ class TestInventario(unittest.TestCase):
 
         self.assertEqual(
             cambios["$inc"],
-            {"stock_reservado": -2}
+            {"stock.reservado": -2, "stock.disponible": 2}
         )
 
-    def test_consolidacion_descuenta_ambos_stocks(self):
+    def test_consolidacion_descuenta_reservado(self):
         self.db.reservas.find_one.return_value = {
             "_id": "RES-009",
             "orden_id": "ORD-009",
@@ -159,8 +159,7 @@ class TestInventario(unittest.TestCase):
         self.assertEqual(
             cambios["$inc"],
             {
-                "stock_fisico": -2,
-                "stock_reservado": -2
+                "stock.reservado": -2
             }
         )
 
@@ -265,7 +264,7 @@ class TestInventario(unittest.TestCase):
         self.db.reservas.insert_one.assert_not_called()
         self.session.with_transaction.assert_called_once()
 
-    def test_reserva_no_descontar_stock_fisico(self):
+    def test_reserva_disminuye_disponible(self):
         self.db.reservas.find_one.return_value = None
 
         reservar_stock(
@@ -279,7 +278,7 @@ class TestInventario(unittest.TestCase):
 
         self.assertEqual(
             cambios,
-            {"$inc": {"stock_reservado": 2}}
+            {"$inc": {"stock.reservado": 2, "stock.disponible": -2}}
         )
 
 
@@ -312,6 +311,32 @@ class TestInventario(unittest.TestCase):
             unique=True,
             name="orden_id_unico"
         )
+
+
+    def test_reserva_verifica_disponible(self):
+        self.db.reservas.find_one.return_value = None
+
+        reservar_stock(
+            self.db, "RES-017", "ORD-017",
+            [{"producto_id": 1, "cantidad": 3}]
+        )
+
+        filtro = self.db.productos.update_one.call_args.args[0]
+        self.assertEqual(filtro["stock.disponible"], {"$gte": 3})
+        self.assertEqual(filtro["stock.reservado"], {"$gte": 0})
+        self.assertEqual(filtro["activo"], True)
+
+    def test_liberacion_verifica_unidades_reservadas(self):
+        self.db.reservas.find_one.return_value = {
+            "_id": "RES-018", "orden_id": "ORD-018",
+            "estado": "RESERVADA",
+            "productos": [{"producto_id": 2, "cantidad": 3}]
+        }
+
+        liberar_stock(self.db, "RES-018", "PAGO_RECHAZADO")
+        filtro = self.db.productos.update_one.call_args.args[0]
+        self.assertEqual(filtro["stock.reservado"], {"$gte": 3})
+        self.assertEqual(filtro["stock.disponible"], {"$gte": 0})
 
 
 
