@@ -2,7 +2,8 @@
 import unittest
 from unittest.mock import MagicMock
 
-from reservas_stock import reservar_stock
+from reservas_stock import reservar_stock, configurar_indices_reservas
+from pymongo import ASCENDING
 from operaciones_stock import consolidar_stock, liberar_stock
 
 
@@ -280,6 +281,38 @@ class TestInventario(unittest.TestCase):
             cambios,
             {"$inc": {"stock_reservado": 2}}
         )
+
+
+    def test_no_permitir_dos_reservas_misma_orden(self):
+        self.db.reservas.find_one.side_effect = [
+            None,
+            {
+                "_id": "RES-ANTERIOR",
+                "orden_id": "ORD-016",
+                "estado": "RESERVADA"
+            }
+        ]
+
+        with self.assertRaises(ValueError):
+            reservar_stock(
+                self.db,
+                "RES-NUEVA",
+                "ORD-016",
+                [{"producto_id": 1, "cantidad": 2}]
+            )
+
+        self.db.productos.update_one.assert_not_called()
+        self.db.reservas.insert_one.assert_not_called()
+
+    def test_indice_unico_por_orden(self):
+        configurar_indices_reservas(self.db)
+
+        self.db.reservas.create_index.assert_called_once_with(
+            [("orden_id", ASCENDING)],
+            unique=True,
+            name="orden_id_unico"
+        )
+
 
 
 if __name__ == "__main__":

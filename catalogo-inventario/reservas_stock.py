@@ -5,6 +5,19 @@ from pymongo.errors import DuplicateKeyError
 from pymongo.read_concern import ReadConcern
 from pymongo.write_concern import WriteConcern
 from pymongo.read_preferences import ReadPreference
+from pymongo import ASCENDING
+
+
+def configurar_indices_reservas(db):
+    """
+    Impide crear dos reservas para una misma orden.
+    Debe ejecutarse al inicializar el servicio.
+    """
+    db.reservas.create_index(
+        [("orden_id", ASCENDING)],
+        unique=True,
+        name="orden_id_unico"
+    )
 
 
 def reservar_stock(db, reserva_id, orden_id, productos):
@@ -62,6 +75,19 @@ def reservar_stock(db, reserva_id, orden_id, productos):
                 raise ValueError("Reserva reutilizada con otros datos")
 
             return existente
+
+
+        # Evitar dos reservas diferentes para la misma orden
+        reserva_orden = db.reservas.find_one(
+            {"orden_id": orden_id},
+            session=session
+        )
+
+        if reserva_orden is not None:
+            raise ValueError(
+                "La orden ya tiene una reserva con otro identificador"
+            )
+
 
         for producto in lineas:
 
