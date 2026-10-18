@@ -1,4 +1,4 @@
-
+from .admin_views import crear_producto
 from django.urls import path
 
 from .views import consultar_producto
@@ -28,5 +28,10 @@ urlpatterns = [
         "reservas/<str:reserva_id>/liberar/",
         liberar_reserva,
         name="liberar_reserva"
+    ),
+    path(
+        "productos/",
+        crear_producto,
+        name="crear_producto"
     ),
 ]
