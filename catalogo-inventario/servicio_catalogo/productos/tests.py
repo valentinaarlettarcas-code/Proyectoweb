@@ -206,3 +206,267 @@ class CrearReservaHTTPTests(SimpleTestCase):
             respuesta.json()["codigo"],
             "CATALOGO_NO_DISPONIBLE"
         )
+
+
+class ConsolidarReservaHTTPTests(SimpleTestCase):
+
+    def setUp(self):
+        token_patcher = patch.dict(
+            os.environ,
+            {"CATALOGO_INTERNAL_TOKEN": "token-solo-pruebas"}
+        )
+        token_patcher.start()
+        self.addCleanup(token_patcher.stop)
+
+        bd_patcher = patch(
+            "productos.operaciones_views.obtener_bd"
+        )
+        self.mock_bd = bd_patcher.start()
+        self.addCleanup(bd_patcher.stop)
+
+        consolidar_patcher = patch(
+            "productos.operaciones_views.consolidar_stock"
+        )
+        self.mock_consolidar = consolidar_patcher.start()
+        self.addCleanup(consolidar_patcher.stop)
+
+        self.mock_consolidar.return_value = {
+            "reserva_id": "RES-001",
+            "estado": "CONSOLIDADA",
+            "ya_procesada": False
+        }
+
+    def enviar(self, autenticado=True,
+               token="token-solo-pruebas"):
+
+        encabezados = {}
+
+        if autenticado:
+            encabezados["HTTP_AUTHORIZATION"] = (
+                f"Bearer {token}"
+            )
+
+        return self.client.post(
+            "/api/reservas/RES-001/consolidar/",
+            data="{}",
+            content_type="application/json",
+            **encabezados
+        )
+
+    def test_consolidacion_exitosa(self):
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(
+            respuesta.json()["estado"],
+            "CONSOLIDADA"
+        )
+        self.assertFalse(
+            respuesta.json()["ya_procesada"]
+        )
+
+        self.mock_consolidar.assert_called_once_with(
+            self.mock_bd.return_value,
+            "RES-001"
+        )
+
+    def test_consolidacion_repetida(self):
+        self.mock_consolidar.return_value = {
+            "reserva_id": "RES-001",
+            "estado": "CONSOLIDADA",
+            "ya_procesada": True
+        }
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(
+            respuesta.json()["ya_procesada"]
+        )
+
+    def test_reserva_inexistente(self):
+        self.mock_consolidar.side_effect = ValueError(
+            "La reserva no existe"
+        )
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertEqual(
+            respuesta.json()["codigo"],
+            "RESERVA_NO_ENCONTRADA"
+        )
+
+    def test_reserva_liberada(self):
+        self.mock_consolidar.side_effect = ValueError(
+            "No se puede procesar una reserva en estado LIBERADA"
+        )
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertEqual(
+            respuesta.json()["codigo"],
+            "CONFLICTO_RESERVA"
+        )
+
+    def test_sin_autenticacion(self):
+        respuesta = self.enviar(autenticado=False)
+
+        self.assertEqual(respuesta.status_code, 401)
+        self.mock_consolidar.assert_not_called()
+
+    def test_token_incorrecto(self):
+        respuesta = self.enviar(
+            token="token-incorrecto"
+        )
+
+        self.assertEqual(respuesta.status_code, 401)
+        self.mock_consolidar.assert_not_called()
+
+    def test_mongodb_no_disponible(self):
+        self.mock_bd.side_effect = RuntimeError(
+            "MongoDB no configurado"
+        )
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertEqual(
+            respuesta.json()["codigo"],
+            "CATALOGO_NO_DISPONIBLE"
+        )
+
+
+class LiberarReservaHTTPTests(SimpleTestCase):
+
+    def setUp(self):
+        token_patcher = patch.dict(
+            os.environ,
+            {"CATALOGO_INTERNAL_TOKEN": "token-solo-pruebas"}
+        )
+        token_patcher.start()
+        self.addCleanup(token_patcher.stop)
+
+        bd_patcher = patch(
+            "productos.operaciones_views.obtener_bd"
+        )
+        self.mock_bd = bd_patcher.start()
+        self.addCleanup(bd_patcher.stop)
+
+        liberar_patcher = patch(
+            "productos.operaciones_views.liberar_stock"
+        )
+        self.mock_liberar = liberar_patcher.start()
+        self.addCleanup(liberar_patcher.stop)
+
+        self.mock_liberar.return_value = {
+            "reserva_id": "RES-001",
+            "estado": "LIBERADA",
+            "ya_procesada": False
+        }
+
+    def enviar(self, motivo="PAGO_RECHAZADO",
+               autenticado=True, token="token-solo-pruebas"):
+
+        encabezados = {}
+
+        if autenticado:
+            encabezados["HTTP_AUTHORIZATION"] = (
+                f"Bearer {token}"
+            )
+
+        return self.client.post(
+            "/api/reservas/RES-001/liberar/",
+            data=json.dumps({"motivo": motivo}),
+            content_type="application/json",
+            **encabezados
+        )
+
+    def test_liberacion_exitosa(self):
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(
+            respuesta.json()["estado"], "LIBERADA"
+        )
+        self.assertFalse(
+            respuesta.json()["ya_procesada"]
+        )
+
+        self.mock_liberar.assert_called_once_with(
+            self.mock_bd.return_value,
+            "RES-001",
+            "PAGO_RECHAZADO"
+        )
+
+    def test_liberacion_repetida(self):
+        self.mock_liberar.return_value = {
+            "reserva_id": "RES-001",
+            "estado": "LIBERADA",
+            "ya_procesada": True
+        }
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.json()["ya_procesada"])
+
+    def test_reserva_inexistente(self):
+        self.mock_liberar.side_effect = ValueError(
+            "La reserva no existe"
+        )
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertEqual(
+            respuesta.json()["codigo"],
+            "RESERVA_NO_ENCONTRADA"
+        )
+
+    def test_no_liberar_reserva_consolidada(self):
+        self.mock_liberar.side_effect = ValueError(
+            "No se puede procesar una reserva en estado CONSOLIDADA"
+        )
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertEqual(
+            respuesta.json()["codigo"], "CONFLICTO_RESERVA"
+        )
+
+    def test_motivo_invalido(self):
+        respuesta = self.enviar(motivo="MOTIVO_DESCONOCIDO")
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(
+            respuesta.json()["codigo"], "DATOS_INVALIDOS"
+        )
+        self.mock_liberar.assert_not_called()
+
+    def test_sin_autenticacion(self):
+        respuesta = self.enviar(autenticado=False)
+
+        self.assertEqual(respuesta.status_code, 401)
+        self.mock_liberar.assert_not_called()
+
+    def test_token_incorrecto(self):
+        respuesta = self.enviar(token="token-incorrecto")
+
+        self.assertEqual(respuesta.status_code, 401)
+        self.mock_liberar.assert_not_called()
+
+    def test_mongodb_no_disponible(self):
+        self.mock_bd.side_effect = RuntimeError(
+            "MongoDB no configurado"
+        )
+
+        respuesta = self.enviar()
+
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertEqual(
+            respuesta.json()["codigo"],
+            "CATALOGO_NO_DISPONIBLE"
+        )
