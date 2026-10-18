@@ -39,6 +39,8 @@ class TestInventario(unittest.TestCase):
             resultado["productos"][0]["cantidad"], 2
         )
 
+        self.assertFalse(resultado["ya_procesada"])
+
     def test_rechazar_cantidad_invalida(self):
         with self.assertRaises(ValueError):
             reservar_stock(
@@ -186,6 +188,7 @@ class TestInventario(unittest.TestCase):
         self.assertEqual(resultado["estado"], "RESERVADA")
         self.db.productos.update_one.assert_not_called()
         self.db.reservas.insert_one.assert_not_called()
+        self.assertTrue(resultado["ya_procesada"])
 
     def test_reserva_duplicada_con_datos_distintos(self):
         self.db.reservas.find_one.return_value = {

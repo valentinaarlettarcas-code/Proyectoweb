@@ -1,4 +1,5 @@
 import os
+import sys
 
 """
 Django settings for config project.
@@ -16,6 +17,13 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+# Permitir reutilizar los modulos de inventario existentes
+RUTA_CATALOGO = BASE_DIR.parent.resolve()
+
+if str(RUTA_CATALOGO) not in sys.path:
+    sys.path.insert(0, str(RUTA_CATALOGO))
 
 
 # Quick-start development settings - unsuitable for production

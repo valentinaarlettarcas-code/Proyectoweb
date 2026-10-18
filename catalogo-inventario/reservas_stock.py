@@ -74,7 +74,10 @@ def reservar_stock(db, reserva_id, orden_id, productos):
                     existente["productos"] != lineas):
                 raise ValueError("Reserva reutilizada con otros datos")
 
-            return existente
+            return {
+                **existente,
+                "ya_procesada": True
+            }
 
 
         # Evitar dos reservas diferentes para la misma orden
@@ -129,7 +132,10 @@ def reservar_stock(db, reserva_id, orden_id, productos):
 
         db.reservas.insert_one(reserva, session=session)
 
-        return reserva
+        return {
+             **reserva,
+             "ya_procesada": False
+        }
 
     try:
         with db.client.start_session() as session:
@@ -146,7 +152,10 @@ def reservar_stock(db, reserva_id, orden_id, productos):
         if (existente and
                 existente["orden_id"] == orden_id and
                 existente["productos"] == lineas):
-            return existente
+            return {
+                **existente,
+                "ya_procesada": True
+            }
 
         if db.reservas.find_one({"orden_id": orden_id}) is not None:
             raise ValueError("La orden ya tiene otra reserva")
