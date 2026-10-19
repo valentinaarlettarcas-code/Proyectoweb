@@ -124,3 +124,7 @@ La arquitectura descrita es el diseño objetivo; no implica que todas las integr
 - Errores y reglas de consistencia documentados.
 - Diferenciación entre funcionalidades implementadas y pendientes.
 - Rutas y respuestas contrastadas con el código antes de la entrega.
+
+## 9. Configuración de integración
+
+Comercio utiliza las variables de entorno `GESTION_VERIFY_TOKEN_URL` para verificar tokens y `CATALOGO_API_BASE_URL` para consultar productos. Configura ambas según las direcciones reales de los servicios. La integración con Catálogo sigue pendiente de comprobarse.
