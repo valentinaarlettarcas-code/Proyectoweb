@@ -91,40 +91,57 @@ class BloquearUsuarioView(APIView):
     permission_classes = [EsAdministrador]
 
     def post(self, request, pk):
-        try:
-            usuario = Usuario.objects.get(pk=pk)
-        except Usuario.DoesNotExist:
-            return Response(
-                {"error": "Usuario no encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        from django.db import transaction
 
-        if usuario == request.user:
-            return Response(
-                {"error": "No puedes bloquear tu propia cuenta."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if usuario.rol == Usuario.Rol.ADMIN:
-            admins_activos = Usuario.objects.filter(
-                rol=Usuario.Rol.ADMIN,
-                estado=Usuario.Estado.ACTIVO
-            ).count()
-
-            if usuario.estado == Usuario.Estado.ACTIVO and admins_activos <= 1:
+        with transaction.atomic():
+            try:
+                usuario = Usuario.objects.get(pk=pk)
+            except Usuario.DoesNotExist:
                 return Response(
-                    {"error": "No se puede bloquear al último administrador activo."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "Usuario no encontrado."},
+                    status=status.HTTP_404_NOT_FOUND
                 )
 
-        usuario.estado = Usuario.Estado.BLOQUEADO
-        usuario.save(update_fields=['estado'])
+            if usuario.pk == request.user.pk:
+                return Response(
+                    {"error": "No puedes bloquear tu propia cuenta."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
-        # Invalida inmediatamente su sesión/token anterior.
-        Token.objects.filter(user=usuario).delete()
+            if usuario.rol == Usuario.Rol.ADMIN:
+                # Bloqueamos todos los administradores en orden estable.
+                # Esto serializa los bloqueos concurrentes de admins.
+                administradores = list(
+                    Usuario.objects.select_for_update()
+                    .filter(rol=Usuario.Rol.ADMIN)
+                    .order_by("pk")
+                )
+
+                usuario = next(
+                    admin for admin in administradores
+                    if admin.pk == pk
+                )
+
+                activos = sum(
+                    admin.estado == Usuario.Estado.ACTIVO
+                    for admin in administradores
+                )
+
+                if usuario.estado == Usuario.Estado.ACTIVO and activos <= 1:
+                    return Response(
+                        {"error": "No se puede bloquear al ultimo administrador activo."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                usuario = Usuario.objects.select_for_update().get(pk=pk)
+
+            usuario.estado = Usuario.Estado.BLOQUEADO
+            usuario.save(update_fields=["estado"])
+
+            # Invalidar el token en la misma transaccion.
+            Token.objects.filter(user=usuario).delete()
 
         return Response({"mensaje": "Usuario bloqueado correctamente."})
-
 
 class DesbloquearUsuarioView(APIView):
     permission_classes = [EsAdministrador]
@@ -170,4 +187,5 @@ class VerificarTokenView(APIView):
                 "estado": usuario.estado,
             }
         })
+
 

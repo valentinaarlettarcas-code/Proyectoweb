@@ -309,3 +309,63 @@ class GestionUsuariosTests(APITestCase):
         )
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("password", respuesta.data)
+
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from django.db import close_old_connections
+from django.test import TransactionTestCase
+from rest_framework.test import APIClient
+
+
+class BloqueoConcurrenteTests(TransactionTestCase):
+    def test_no_pueden_bloquearse_dos_admins_simultaneamente(self):
+        admin1 = Usuario.objects.create_user(
+            username="concurrente1@test.com",
+            email="concurrente1@test.com",
+            password="ClaveSegura123!",
+            rol=Usuario.Rol.ADMIN,
+            estado=Usuario.Estado.ACTIVO
+        )
+
+        admin2 = Usuario.objects.create_user(
+            username="concurrente2@test.com",
+            email="concurrente2@test.com",
+            password="ClaveSegura123!",
+            rol=Usuario.Rol.ADMIN,
+            estado=Usuario.Estado.ACTIVO
+        )
+
+        token1 = Token.objects.create(user=admin1)
+        token2 = Token.objects.create(user=admin2)
+        inicio = Barrier(2)
+
+        def intentar_bloqueo(token, objetivo):
+            close_old_connections()
+            try:
+                cliente = APIClient()
+                cliente.credentials(
+                    HTTP_AUTHORIZATION=f"Token {token}"
+                )
+                inicio.wait(timeout=10)
+                return cliente.post(
+                    reverse("bloquear-usuario", args=[objetivo])
+                ).status_code
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            f1 = executor.submit(
+                intentar_bloqueo, token1.key, admin2.pk
+            )
+            f2 = executor.submit(
+                intentar_bloqueo, token2.key, admin1.pk
+            )
+            resultados = [f1.result(), f2.result()]
+
+        activos = Usuario.objects.filter(
+            rol=Usuario.Rol.ADMIN,
+            estado=Usuario.Estado.ACTIVO
+        ).count()
+
+        self.assertGreaterEqual(activos, 1)
+        self.assertNotIn(500, resultados)
