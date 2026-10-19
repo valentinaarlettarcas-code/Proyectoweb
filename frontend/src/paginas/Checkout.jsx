@@ -6,17 +6,18 @@ function Checkout() {
   const [error, setError] = useState(null);
 
   const carritoPrueba = [
-    { product_id: 'producto-teclado-mecanico', quantity: 1 },
+    { producto_id: 1, quantity: 1 },
   ];
+  const checkoutId = 'checkout-prueba-001';
 
   const handlePagar = async () => {
     if (cargando) return;
     setCargando(true);
     setError(null);
     try {
-      const orden = await crearOrden(carritoPrueba);
+      const orden = await crearOrden(carritoPrueba, checkoutId);
       const returnUrl = `${window.location.origin}/pago/retorno`;
-      const intento = await iniciarPago(orden.order_id, returnUrl);
+      const intento = await iniciarPago(orden.id, returnUrl);
       if (intento.checkout_url) {
         window.location.href = intento.checkout_url;
       } else {
