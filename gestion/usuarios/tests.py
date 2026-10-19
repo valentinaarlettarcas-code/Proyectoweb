@@ -220,3 +220,50 @@ class GestionUsuariosTests(APITestCase):
         admin1.refresh_from_db()
 
         self.assertEqual(admin1.estado, Usuario.Estado.ACTIVO)
+    def test_admin_puede_desbloquear_usuario_bloqueado(self):
+        admin = self.crear_usuario(
+            "admin-desbloqueo@test.com",
+            rol=Usuario.Rol.ADMIN
+        )
+        cliente = self.crear_usuario(
+            "cliente-bloqueado@test.com",
+            estado=Usuario.Estado.BLOQUEADO
+        )
+
+        token = Token.objects.create(user=admin)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {token.key}"
+        )
+
+        respuesta = self.client.post(
+            reverse("desbloquear-usuario", args=[cliente.id])
+        )
+
+        cliente.refresh_from_db()
+
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(cliente.estado, Usuario.Estado.ACTIVO)
+
+    def test_no_se_puede_desbloquear_usuario_activo(self):
+        admin = self.crear_usuario(
+            "admin-validacion@test.com",
+            rol=Usuario.Rol.ADMIN
+        )
+        cliente = self.crear_usuario("cliente-activo@test.com")
+
+        token = Token.objects.create(user=admin)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {token.key}"
+        )
+
+        respuesta = self.client.post(
+            reverse("desbloquear-usuario", args=[cliente.id])
+        )
+
+        cliente.refresh_from_db()
+
+        self.assertEqual(
+            respuesta.status_code,
+            status.HTTP_400_BAD_REQUEST
+        )
+        self.assertEqual(cliente.estado, Usuario.Estado.ACTIVO)

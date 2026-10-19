@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+﻿from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -138,6 +138,12 @@ class DesbloquearUsuarioView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        if usuario.estado != Usuario.Estado.BLOQUEADO:
+            return Response(
+                {"error": "Solo se pueden desbloquear usuarios bloqueados."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         usuario.estado = Usuario.Estado.ACTIVO
         usuario.save(update_fields=['estado'])
 
@@ -164,3 +170,4 @@ class VerificarTokenView(APIView):
                 "estado": usuario.estado,
             }
         })
+
