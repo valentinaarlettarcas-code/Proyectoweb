@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import Carrito from './paginas/Carrito';
 import Checkout from './paginas/Checkout';
 import OrdenCompra from './paginas/OrdenCompra';
+import RetornoPago from './paginas/RetornoPago';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/" element={<Navigate to="/carrito" />} />
         <Route path="/carrito" element={<Carrito />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/pago/retorno" element={<RetornoPago />} />
         <Route path="/resumen" element={<OrdenCompra />} />
       </Routes>
     </BrowserRouter>
