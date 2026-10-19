@@ -1,30 +1,35 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 from .models import Usuario
 
 
 class RegistroUsuarioSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
+    first_name = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+    last_name = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=8)
 
     class Meta:
         model = Usuario
-        fields = [
-            'id',
-            'first_name',
-            'last_name',
-            'email',
-            'password'
-        ]
+        fields = ['id', 'first_name', 'last_name', 'email', 'password']
         read_only_fields = ['id']
 
     def validate_email(self, value):
         email = value.lower().strip()
 
         if Usuario.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError(
-                "Ya existe un usuario con este correo electrónico."
-            )
+            raise serializers.ValidationError("Ya existe un usuario con este correo.")
 
         return email
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+
+        try:
+            validate_password(value)
+        except ValidationError as error:
+            raise serializers.ValidationError(error.messages)
+
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -39,7 +44,6 @@ class RegistroUsuarioSerializer(serializers.ModelSerializer):
 
         usuario.set_password(password)
         usuario.save()
-
         return usuario
 
 class LoginSerializer(serializers.Serializer):

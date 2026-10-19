@@ -267,3 +267,45 @@ class GestionUsuariosTests(APITestCase):
             status.HTTP_400_BAD_REQUEST
         )
         self.assertEqual(cliente.estado, Usuario.Estado.ACTIVO)
+
+    def test_registro_rechaza_nombre_vacio(self):
+        respuesta = self.client.post(
+            reverse("registro"),
+            {
+                "first_name": "   ",
+                "last_name": "Prueba",
+                "email": "sin-nombre@test.com",
+                "password": "ClaveSegura987!"
+            },
+            format="json"
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("first_name", respuesta.data)
+
+    def test_registro_rechaza_apellido_vacio(self):
+        respuesta = self.client.post(
+            reverse("registro"),
+            {
+                "first_name": "Ana",
+                "last_name": "   ",
+                "email": "sin-apellido@test.com",
+                "password": "ClaveSegura987!"
+            },
+            format="json"
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("last_name", respuesta.data)
+
+    def test_registro_rechaza_password_comun(self):
+        respuesta = self.client.post(
+            reverse("registro"),
+            {
+                "first_name": "Ana",
+                "last_name": "Prueba",
+                "email": "password-debil@test.com",
+                "password": "password123"
+            },
+            format="json"
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password", respuesta.data)
