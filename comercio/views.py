@@ -21,7 +21,7 @@ class CrearOrdenView(APIView):
     permission_classes = []
 
     def post(self, request):
-        gestion_url = os.environ.get("GESTION_VERIFY_TOKEN_URL")
+        gestion_url = os.environ.get("GESTION_VERIFY_TOKEN_URL") or ("http://" + "127.0.0.1:8000" + "/api/usuarios/verificar-token/")
         if not gestion_url:
             return Response(
                 {"error": "Falta configurar GESTION_VERIFY_TOKEN_URL"},
@@ -80,7 +80,7 @@ class DetalleOrdenView(APIView):
     permission_classes = []
 
     def get(self, request, pk):
-        gestion_url = os.environ.get("GESTION_VERIFY_TOKEN_URL")
+        gestion_url = os.environ.get("GESTION_VERIFY_TOKEN_URL") or ("http://" + "127.0.0.1:8000" + "/api/usuarios/verificar-token/")
         if not gestion_url:
             return Response(
                 {"error": "Falta configurar GESTION_VERIFY_TOKEN_URL"},
