@@ -1,0 +1,364 @@
+﻿
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-commerce de accesorios tech y gaming - Wireframes</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #eef0f4;
+      color: #252936;
+      margin: 0;
+      padding: 28px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      text-align: center;
+      color: #666;
+      margin-bottom: 28px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .panel {
+      background: white;
+      border: 2px solid #aeb4bf;
+      border-radius: 12px;
+      padding: 18px;
+      min-height: 430px;
+    }
+
+    .panel h2 {
+      font-size: 19px;
+      margin: 0 0 18px;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 10px;
+    }
+
+    .brand {
+      text-align: center;
+      font-weight: bold;
+      font-size: 20px;
+      margin: 12px 0 24px;
+    }
+
+    .label {
+      font-size: 13px;
+      margin: 13px 0 6px;
+    }
+
+    .field {
+      height: 36px;
+      border: 2px solid #b9bdc7;
+      background: #f8f8f8;
+      border-radius: 5px;
+    }
+
+    .btn {
+      border: 2px solid #6d7280;
+      background: #d9dce3;
+      text-align: center;
+      padding: 10px;
+      margin-top: 18px;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+
+    .links {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      text-decoration: underline;
+    }
+
+    .item {
+      border: 2px solid #c6c9d0;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+    }
+
+    .thumb {
+      height: 45px;
+      width: 45px;
+      background: #dedfe4;
+      border: 2px solid #b7bac3;
+    }
+
+    .itemname {
+      flex: 1;
+      margin-left: 12px;
+    }
+
+    .total {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 22px;
+      border-top: 2px solid #ccc;
+      padding-top: 14px;
+      font-weight: bold;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #777;
+      margin-top: 10px;
+    }
+
+    .check {
+      border: 3px solid #8b929e;
+      border-radius: 50%;
+      height: 55px;
+      width: 55px;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      margin: 15px auto;
+    }
+
+    .success {
+      text-align: center;
+    }
+
+    .summary {
+      border: 2px solid #c7cad0;
+      padding: 14px;
+      margin-top: 20px;
+    }
+
+    .summary div {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .steps {
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 10px;
+      }
+
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .panel {
+        break-inside: avoid;
+        min-height: 390px;
+      }
+    }
+
+    @media (max-width: 650px) {
+      body {
+        padding: 12px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>E-commerce de accesorios tech y gaming - Wireframes</h1>
+    <p>Propuesta visual de cinco pantallas - No funcional</p>
+  </header>
+
+  <main class="grid">
+
+    <!-- 1. AUTENTICACIÓN -->
+    <section class="panel">
+      <h2>01 - Autenticación</h2>
+
+      <div class="brand">E-commerce de accesorios tech y gaming</div>
+
+      <div class="label">Correo electrónico</div>
+      <div class="field"></div>
+
+      <div class="label">Contraseña</div>
+      <div class="field"></div>
+
+      <div class="btn">Iniciar sesión</div>
+
+      <div class="links">
+        Crear cuenta · Recuperar contraseña
+      </div>
+
+      <p class="hint">
+        Mostrar errores sin revelar si existe una cuenta.
+      </p>
+    </section>
+
+    <!-- 2. REGISTRO -->
+    <section class="panel">
+      <h2>02 - Registro</h2>
+
+      <div class="brand">Crear cuenta</div>
+
+      <div class="label">Nombre</div>
+      <div class="field"></div>
+
+      <div class="label">Apellido</div>
+      <div class="field"></div>
+
+      <div class="label">Correo electrónico</div>
+      <div class="field"></div>
+
+      <div class="label">Contraseña</div>
+      <div class="field"></div>
+
+      <div class="label">Confirmar contraseña</div>
+      <div class="field"></div>
+
+      <div class="btn">Registrarme</div>
+
+      <div class="links">Ya tengo cuenta</div>
+    </section>
+
+    <!-- 3. CARRITO -->
+    <section class="panel">
+      <h2>03 - Carrito</h2>
+
+      <div class="brand">Mi carrito</div>
+
+      <div class="item">
+        <div class="thumb"></div>
+        <div class="itemname">
+          Producto A
+          <br>
+          <small>Cantidad: 1 · Quitar</small>
+        </div>
+        <strong>$XX</strong>
+      </div>
+
+      <div class="item">
+        <div class="thumb"></div>
+        <div class="itemname">
+          Producto B
+          <br>
+          <small>Cantidad: 2 · Quitar</small>
+        </div>
+        <strong>$XX</strong>
+      </div>
+
+      <div class="total">
+        <span>Total estimado</span>
+        <span>$XX</span>
+      </div>
+
+      <div class="btn">Continuar al pago</div>
+
+      <div class="links">Seguir comprando</div>
+    </section>
+
+    <!-- 4. PAGO -->
+    <section class="panel">
+      <h2>04 - Pago</h2>
+
+      <div class="steps">
+        Carrito → Pago → Confirmación
+      </div>
+
+      <div class="label">Nombre del comprador</div>
+      <div class="field"></div>
+
+      <div class="label">Correo electrónico</div>
+      <div class="field"></div>
+
+      <div class="label">Método de pago</div>
+
+      <div class="item">
+        Pasarela de pago segura
+        <span>○</span>
+      </div>
+
+      <div class="total">
+        <span>Total a pagar</span>
+        <span>$XX</span>
+      </div>
+
+      <div class="btn">Confirmar y pagar</div>
+
+      <div class="links">Volver al carrito</div>
+
+      <p class="hint">
+        El backend calcula el importe definitivo.
+        No introducir datos de tarjeta en esta maqueta.
+      </p>
+    </section>
+
+    <!-- 5. RESUMEN Y CONFIRMACIÓN -->
+    <section class="panel">
+      <h2>05 - Resumen y confirmación</h2>
+
+      <div class="check">✓</div>
+
+      <div class="success">
+        <h3>¡Pedido confirmado!</h3>
+        <p>Tu compra se registró correctamente.</p>
+      </div>
+
+      <div class="summary">
+        <div>
+          <span>Pedido</span>
+          <strong>#0001</strong>
+        </div>
+
+        <div>
+          <span>Productos</span>
+          <strong>2</strong>
+        </div>
+
+        <div>
+          <span>Total</span>
+          <strong>$XX</strong>
+        </div>
+
+        <div>
+          <span>Estado</span>
+          <strong>Confirmado</strong>
+        </div>
+      </div>
+
+      <div class="btn">Volver al inicio</div>
+
+      <p class="hint">
+        Mostrar confirmación solo tras verificar
+        el estado del pago en el backend.
+      </p>
+    </section>
+
+  </main>
+</body>
+</html>
+
