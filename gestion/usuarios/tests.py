@@ -369,3 +369,30 @@ class BloqueoConcurrenteTests(TransactionTestCase):
 
         self.assertGreaterEqual(activos, 1)
         self.assertNotIn(500, resultados)
+
+    def test_registro_no_permite_asignar_admin(self):
+        respuesta = self.client.post(
+            reverse("registro"),
+            {
+                "first_name": "Ana",
+                "last_name": "Prueba",
+                "email": "intento-admin@test.com",
+                "password": "ClaveSegura987!",
+                "rol": "ADMIN",
+                "estado": "ACTIVO"
+            },
+            format="json"
+        )
+
+        self.assertEqual(
+            respuesta.status_code,
+            status.HTTP_201_CREATED
+        )
+
+        usuario = Usuario.objects.get(
+            email="intento-admin@test.com"
+        )
+
+        self.assertEqual(usuario.rol, Usuario.Rol.CLIENTE)
+        self.assertEqual(usuario.estado, Usuario.Estado.ACTIVO)
+        self.assertEqual(respuesta.data["usuario"]["rol"], "CLIENTE")
