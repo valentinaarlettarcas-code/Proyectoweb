@@ -396,3 +396,46 @@ class BloqueoConcurrenteTests(TransactionTestCase):
         self.assertEqual(usuario.rol, Usuario.Rol.CLIENTE)
         self.assertEqual(usuario.estado, Usuario.Estado.ACTIVO)
         self.assertEqual(respuesta.data["usuario"]["rol"], "CLIENTE")
+
+    def test_patch_no_permite_cambiar_rol_ni_estado(self):
+        admin = Usuario.objects.create_user(
+            username="admin-patch@test.com",
+            email="admin-patch@test.com",
+            password="ClaveSegura987!",
+            rol=Usuario.Rol.ADMIN,
+            estado=Usuario.Estado.ACTIVO
+        )
+
+        cliente = Usuario.objects.create_user(
+            username="cliente-patch@test.com",
+            email="cliente-patch@test.com",
+            password="ClaveSegura987!",
+            rol=Usuario.Rol.CLIENTE,
+            estado=Usuario.Estado.ACTIVO
+        )
+
+        token = Token.objects.create(user=admin)
+
+        cliente_api = APIClient()
+        cliente_api.credentials(
+            HTTP_AUTHORIZATION=f"Token {token.key}"
+        )
+
+        respuesta = cliente_api.patch(
+            reverse("detalle-usuario", args=[cliente.id]),
+            {
+                "rol": "ADMIN",
+                "estado": "BLOQUEADO"
+            },
+            format="json"
+        )
+
+        cliente.refresh_from_db()
+
+        self.assertEqual(
+            respuesta.status_code,
+            status.HTTP_200_OK
+        )
+        self.assertEqual(cliente.rol, Usuario.Rol.CLIENTE)
+        self.assertEqual(cliente.estado, Usuario.Estado.ACTIVO)
+
