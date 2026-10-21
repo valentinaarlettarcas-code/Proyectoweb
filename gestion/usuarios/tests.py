@@ -268,6 +268,39 @@ class GestionUsuariosTests(APITestCase):
         )
         self.assertEqual(cliente.estado, Usuario.Estado.ACTIVO)
 
+    def test_no_desbloquear_cuenta_sin_activar(self):
+        admin = self.crear_usuario(
+            "admin-test@test.com",
+            rol=Usuario.Rol.ADMIN
+        )
+
+        cliente = self.crear_usuario(
+            "pendiente@test.com",
+            estado=Usuario.Estado.BLOQUEADO
+        )
+        cliente.is_active = False
+        cliente.save(update_fields=["is_active"])
+
+        token = Token.objects.create(user=admin)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {token.key}"
+        )
+
+        respuesta = self.client.post(
+            reverse("desbloquear-usuario", args=[cliente.id])
+        )
+
+        cliente.refresh_from_db()
+
+        self.assertEqual(
+            respuesta.status_code,
+            status.HTTP_400_BAD_REQUEST
+        )
+        self.assertEqual(
+            cliente.estado,
+            Usuario.Estado.BLOQUEADO
+        )
+        
     def test_registro_rechaza_nombre_vacio(self):
         respuesta = self.client.post(
             reverse("registro"),
@@ -343,7 +376,7 @@ class GestionUsuariosTests(APITestCase):
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("last_name", respuesta.data)
         self.assertEqual(cliente.last_name, "Prueba")
-        
+
     def test_registro_rechaza_password_comun(self):
         respuesta = self.client.post(
             reverse("registro"),

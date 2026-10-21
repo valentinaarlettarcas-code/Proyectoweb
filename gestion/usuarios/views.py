@@ -155,17 +155,25 @@ class DesbloquearUsuarioView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        if usuario.estado != Usuario.Estado.BLOQUEADO:
+        if usuario.estado == Usuario.Estado.BLOQUEADO:
+            if usuario.is_active:
+                usuario.estado = Usuario.Estado.ACTIVO
+                usuario.save(update_fields=["estado"])
+
+                return Response({
+                    "mensaje": "Usuario desbloqueado correctamente."
+                })
+            else:
+                return Response(
+                    {"error": "La cuenta nunca ha sido activada."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
             return Response(
                 {"error": "Solo se pueden desbloquear usuarios bloqueados."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        usuario.estado = Usuario.Estado.ACTIVO
-        usuario.save(update_fields=['estado'])
-
-        return Response({"mensaje": "Usuario desbloqueado correctamente."})
-
+            
 class VerificarTokenView(APIView):
     permission_classes = [IsAuthenticated]
 
