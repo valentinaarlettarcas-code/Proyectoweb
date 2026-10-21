@@ -296,6 +296,54 @@ class GestionUsuariosTests(APITestCase):
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("last_name", respuesta.data)
 
+    def test_edicion_rechaza_nombre_vacio(self):
+        admin = self.crear_usuario(
+            "admin-edicion@test.com",
+            rol=Usuario.Rol.ADMIN
+        )
+        cliente = self.crear_usuario("cliente-edicion@test.com")
+
+        token = Token.objects.create(user=admin)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {token.key}"
+        )
+
+        respuesta = self.client.patch(
+            reverse("detalle-usuario", args=[cliente.id]),
+            {"first_name": "   "},
+            format="json"
+        )
+
+        cliente.refresh_from_db()
+
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("first_name", respuesta.data)
+        self.assertEqual(cliente.first_name, "Usuario")
+
+    def test_edicion_rechaza_apellido_vacio(self):
+        admin = self.crear_usuario(
+            "admin-apellido@test.com",
+            rol=Usuario.Rol.ADMIN
+        )
+        cliente = self.crear_usuario("cliente-apellido@test.com")
+
+        token = Token.objects.create(user=admin)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {token.key}"
+        )
+
+        respuesta = self.client.patch(
+            reverse("detalle-usuario", args=[cliente.id]),
+            {"last_name": ""},
+            format="json"
+        )
+
+        cliente.refresh_from_db()
+
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("last_name", respuesta.data)
+        self.assertEqual(cliente.last_name, "Prueba")
+        
     def test_registro_rechaza_password_comun(self):
         respuesta = self.client.post(
             reverse("registro"),

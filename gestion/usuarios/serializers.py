@@ -71,6 +71,17 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 class UsuarioSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        trim_whitespace=True
+    )
+    last_name = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        trim_whitespace=True
+    )
+
     class Meta:
         model = Usuario
         fields = [
