@@ -1,6 +1,8 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
-from .models import Usuario
 
+from .models import Usuario
 
 class RegistroUsuarioSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
@@ -21,9 +23,6 @@ class RegistroUsuarioSerializer(serializers.ModelSerializer):
         return email
 
     def validate_password(self, value):
-        from django.contrib.auth.password_validation import validate_password
-        from django.core.exceptions import ValidationError
-
         try:
             validate_password(value)
         except ValidationError as error:

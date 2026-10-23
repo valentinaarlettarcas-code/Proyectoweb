@@ -1,12 +1,17 @@
+from django.db import transaction
 from rest_framework import generics, status
+from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authtoken.models import Token
 
 from .models import Usuario
-from .serializers import RegistroUsuarioSerializer, LoginSerializer, UsuarioSerializer
 from .permissions import EsAdministrador
+from .serializers import (
+    LoginSerializer,
+    RegistroUsuarioSerializer,
+    UsuarioSerializer,
+)
 
 class RegistroUsuarioView(generics.CreateAPIView):
     queryset = Usuario.objects.all()
@@ -91,7 +96,6 @@ class BloquearUsuarioView(APIView):
     permission_classes = [EsAdministrador]
 
     def post(self, request, pk):
-        from django.db import transaction
 
         with transaction.atomic():
             try:

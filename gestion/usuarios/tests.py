@@ -1,10 +1,14 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+
+from django.db import close_old_connections
+from django.test import TransactionTestCase
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APIClient, APITestCase
 
 from .models import Usuario
-
 
 class GestionUsuariosTests(APITestCase):
 
@@ -390,13 +394,6 @@ class GestionUsuariosTests(APITestCase):
         )
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("password", respuesta.data)
-
-from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
-from django.db import close_old_connections
-from django.test import TransactionTestCase
-from rest_framework.test import APIClient
-
 
 class BloqueoConcurrenteTests(TransactionTestCase):
     def test_no_pueden_bloquearse_dos_admins_simultaneamente(self):
