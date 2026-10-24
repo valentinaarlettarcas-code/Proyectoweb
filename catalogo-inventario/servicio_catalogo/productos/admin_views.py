@@ -95,3 +95,57 @@ def crear_producto(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+# RF17: Listado administrativo de productos.
+
+@api_view(["GET"])
+@authentication_classes([AutenticacionAdministrativaTemporal])
+@permission_classes([IsAuthenticated])
+def listar_productos_admin(request):
+    """
+    Lista los productos registrados en MongoDB.
+
+    Incluye productos activos e inactivos.
+    Solo permite el acceso a usuarios administrativos.
+    No modifica existencias ni reservas.
+    """
+
+    try:
+        bd = obtener_bd()
+
+        productos = list(
+            bd.productos.find(
+                {},
+                {
+                    "_id": 0,
+                    "id": 1,
+                    "nombre": 1,
+                    "descripcion": 1,
+                    "precio": 1,
+                    "categoria": 1,
+                    "imagenes": 1,
+                    "stock": 1,
+                    "activo": 1,
+                },
+            )
+        )
+
+        productos.sort(key=lambda producto: producto.get("id", 0))
+
+    except (PyMongoError, RuntimeError):
+        return Response(
+            {
+                "codigo": "CATALOGO_NO_DISPONIBLE",
+                "mensaje": "No se pudo obtener el listado de productos",
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    return Response(
+        {
+            "total": len(productos),
+            "productos": productos,
+        },
+        status=status.HTTP_200_OK,
+    )
