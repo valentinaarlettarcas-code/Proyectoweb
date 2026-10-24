@@ -12,8 +12,6 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from operaciones_stock import consolidar_stock
-
 from .mongo import obtener_bd
 from .reservas_views import AutenticacionInterna
 
