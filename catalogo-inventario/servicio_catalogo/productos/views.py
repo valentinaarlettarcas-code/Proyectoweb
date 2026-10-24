@@ -26,14 +26,18 @@ def consultar_producto(request, producto_id):
                 "id": producto_id,
                 "activo": True
             },
+            
             {
                 "_id": 0,
                 "id": 1,
                 "nombre": 1,
                 "precio": 1,
                 "stock.disponible": 1,
-                "activo": 1
+                "activo": 1,
+                "imagenes": 1,
+                "imagenes_accesibles": 1
             }
+
         )
 
     except (PyMongoError, RuntimeError):
@@ -76,6 +80,7 @@ def consultar_producto(request, producto_id):
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
 
+    
     return Response(
         {
             "id": producto["id"],
@@ -83,7 +88,12 @@ def consultar_producto(request, producto_id):
             "precio": precio,
             "moneda": "CLP",
             "stock_disponible": disponible,
-            "activo": True
+            "activo": True,
+            "imagenes": producto.get("imagenes") or [],
+            "imagenes_accesibles": (
+                producto.get("imagenes_accesibles") or []
+            ),
         },
         status=status.HTTP_200_OK
     )
+
