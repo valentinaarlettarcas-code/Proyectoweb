@@ -34,15 +34,40 @@ class CrearProductoSerializer(serializers.Serializer):
         allow_empty=False,
     )
 
+    
+    # Un texto alternativo por imagen.
+    textos_alternativos = serializers.ListField(
+        child=serializers.CharField(
+            max_length=200,
+            allow_blank=False,
+            trim_whitespace=True,
+        ),
+        min_length=4,
+        max_length=6,
+        allow_empty=False,
+        required=False,
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        imagenes = attrs["imagenes"]
+        textos = attrs.get("textos_alternativos")
+
+        if textos is not None and len(textos) != len(imagenes):
+            raise serializers.ValidationError({
+                "textos_alternativos":
+                    "Debe existir un texto alternativo por cada imagen."
+            })
+
+        return attrs
+
+
 
 # RF17: Edicion administrativa de productos.
-class EditarProductoSerializer(serializers.Serializer):
-    """
-    Permite editar los datos comerciales del producto.
 
-    No permite modificar el identificador, el inventario
-    ni el estado de activacion del producto.
-    """
+class EditarProductoSerializer(serializers.Serializer):
+    """Campos permitidos para editar un producto."""
 
     nombre = serializers.CharField(
         max_length=160,
@@ -75,23 +100,65 @@ class EditarProductoSerializer(serializers.Serializer):
         required=False,
     )
 
+    textos_alternativos = serializers.ListField(
+        child=serializers.CharField(
+            max_length=200,
+            allow_blank=False,
+            trim_whitespace=True,
+        ),
+        min_length=4,
+        max_length=6,
+        allow_empty=False,
+        required=False,
+    )
+
     def validate(self, attrs):
-        """
-        Rechaza campos no permitidos y solicitudes vacias.
-        """
+        permitidos = {
+            "nombre",
+            "descripcion",
+            "precio",
+            "categoria",
+            "imagenes",
+            "textos_alternativos",
+        }
 
-        campos_no_permitidos = sorted(
-            set(self.initial_data) - set(self.fields)
-        )
+        campos_recibidos = set(self.initial_data.keys())
+        campos_invalidos = campos_recibidos - permitidos
 
-        if campos_no_permitidos:
+        if campos_invalidos:
             raise serializers.ValidationError({
-                "campos_no_permitidos": campos_no_permitidos
+                "campos": (
+                    "No se permite modificar: "
+                    + ", ".join(sorted(campos_invalidos))
+                )
             })
 
         if not attrs:
             raise serializers.ValidationError(
-                "Debes enviar al menos un campo editable."
+                "Debes proporcionar al menos un campo para editar."
             )
+
+        tiene_imagenes = "imagenes" in attrs
+        tiene_textos = "textos_alternativos" in attrs
+
+        # Las imagenes y sus textos deben actualizarse juntos.
+        if tiene_imagenes != tiene_textos:
+            raise serializers.ValidationError({
+                "imagenes": (
+                    "Para actualizar las imagenes debes enviar "
+                    "tambien sus textos alternativos, y viceversa."
+                )
+            })
+
+        if tiene_imagenes:
+            if len(attrs["imagenes"]) != len(
+                attrs["textos_alternativos"]
+            ):
+                raise serializers.ValidationError({
+                    "textos_alternativos": (
+                        "Debe existir un texto alternativo "
+                        "por cada imagen."
+                    )
+                })
 
         return attrs
