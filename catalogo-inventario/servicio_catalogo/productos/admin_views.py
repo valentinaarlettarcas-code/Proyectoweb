@@ -11,9 +11,13 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .admin_serializers import CrearProductoSerializer
+from .admin_serializers import (
+    CrearProductoSerializer,
+    EditarProductoSerializer,
+)
 from .mongo import obtener_bd
 
+from pymongo import ReturnDocument
 
 class UsuarioAdministrativoInterno:
     is_authenticated = True
@@ -147,5 +151,69 @@ def listar_productos_admin(request):
             "total": len(productos),
             "productos": productos,
         },
+        status=status.HTTP_200_OK,
+    )
+
+
+# RF17: Edicion administrativa de productos.
+
+@api_view(["PATCH"])
+@authentication_classes([AutenticacionAdministrativaTemporal])
+@permission_classes([IsAuthenticated])
+def editar_producto_admin(request, producto_id):
+    """
+    Modifica datos comerciales de un producto.
+
+    No permite modificar:
+    - ID
+    - Stock disponible o reservado
+    - Estado activo/inactivo
+
+    Admite productos activos e inactivos.
+    """
+
+    serializador = EditarProductoSerializer(data=request.data)
+
+    if not serializador.is_valid():
+        return Response(
+            {
+                "codigo": "DATOS_INVALIDOS",
+                "detalles": serializador.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    cambios = dict(serializador.validated_data)
+
+    try:
+        bd = obtener_bd()
+
+        producto_actualizado = bd.productos.find_one_and_update(
+            {"id": producto_id},
+            {"$set": cambios},
+            projection={"_id": 0},
+            return_document=ReturnDocument.AFTER,
+        )
+
+    except (PyMongoError, RuntimeError):
+        return Response(
+            {
+                "codigo": "CATALOGO_NO_DISPONIBLE",
+                "mensaje": "No se pudo actualizar el producto",
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    if producto_actualizado is None:
+        return Response(
+            {
+                "codigo": "PRODUCTO_NO_ENCONTRADO",
+                "mensaje": "El producto no existe",
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    return Response(
+        producto_actualizado,
         status=status.HTTP_200_OK,
     )
