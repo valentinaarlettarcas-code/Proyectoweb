@@ -217,3 +217,82 @@ def editar_producto_admin(request, producto_id):
         producto_actualizado,
         status=status.HTTP_200_OK,
     )
+
+
+# RF18: Desactivacion logica de productos.
+
+@api_view(["PATCH"])
+@authentication_classes([AutenticacionAdministrativaTemporal])
+@permission_classes([IsAuthenticated])
+def desactivar_producto_admin(request, producto_id):
+    """
+    Desactiva un producto sin eliminarlo de MongoDB.
+
+    Conserva:
+    - Identificador
+    - Datos comerciales
+    - Stock disponible
+    - Stock reservado
+
+    La operacion es idempotente:
+    desactivar dos veces no genera un error.
+    """
+
+    try:
+        productos = obtener_bd().productos
+
+        # Desactivar solo si actualmente esta activo.
+        producto = productos.find_one_and_update(
+            {
+                "id": producto_id,
+                "activo": True,
+            },
+            {
+                "$set": {
+                    "activo": False,
+                }
+            },
+            projection={"_id": 0},
+            return_document=ReturnDocument.AFTER,
+        )
+
+        desactivado_ahora = producto is not None
+
+        # Distinguir un producto inexistente de uno ya inactivo.
+        if producto is None:
+            producto = productos.find_one(
+                {"id": producto_id},
+                {"_id": 0},
+            )
+
+    except (PyMongoError, RuntimeError):
+        return Response(
+            {
+                "codigo": "CATALOGO_NO_DISPONIBLE",
+                "mensaje": "No se pudo desactivar el producto",
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    if producto is None:
+        return Response(
+            {
+                "codigo": "PRODUCTO_NO_ENCONTRADO",
+                "mensaje": "El producto no existe",
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    return Response(
+        {
+            "id": producto_id,
+            "activo": producto.get("activo", False),
+            "mensaje": (
+                "Producto desactivado correctamente"
+                if desactivado_ahora
+                else "El producto ya estaba desactivado"
+            ),
+            "stock": producto.get("stock", {}),
+        },
+        status=status.HTTP_200_OK,
+    )

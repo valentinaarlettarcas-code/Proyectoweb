@@ -5,7 +5,9 @@ from .admin_views import (
     crear_producto,
     listar_productos_admin,
     editar_producto_admin,
+    desactivar_producto_admin,
 )
+
 
 from .views import consultar_producto
 
@@ -66,4 +68,13 @@ urlpatterns = [
         editar_producto_admin,
         name="editar_producto_admin",
     ),
+
+    
+    # RF18: Desactivacion logica administrativa.
+    path(
+        "admin/productos/<int:producto_id>/desactivar/",
+        desactivar_producto_admin,
+        name="desactivar_producto_admin",
+    ),
+
 ]
