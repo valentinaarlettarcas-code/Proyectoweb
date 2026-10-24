@@ -1,6 +1,9 @@
 
 from django.urls import path
 
+from .stock_admin_views import ajustar_stock_admin
+
+
 from .admin_views import (
     crear_producto,
     listar_productos_admin,
@@ -76,5 +79,13 @@ urlpatterns = [
         desactivar_producto_admin,
         name="desactivar_producto_admin",
     ),
+
+    
+    path(
+        "admin/productos/<int:producto_id>/ajustar-stock/",
+        ajustar_stock_admin,
+        name="ajustar_stock_admin",
+    ),
+
 
 ]
