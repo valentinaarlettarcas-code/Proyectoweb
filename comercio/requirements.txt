@@ -1,5 +1,6 @@
 Django==6.1.2
 djangorestframework==3.18.3
-psycopg2-binary>=2.9
-requests>=2.31.0
+psycopg==3.3.6
+psycopg-binary==3.3.6
+requests==2.31.0
 transbank-sdk==6.1.0
