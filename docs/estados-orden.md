@@ -73,4 +73,26 @@ Definir los estados de una orden y las reglas que permiten coordinar el pago con
 - Mecanismo para reconciliar un pago aprobado con una reserva de inventario fallida.
 - Transiciones permitidas y prohibidas para evitar cambios de estado contradictorios.
 
-**Nota:** las definiciones son una propuesta funcional basada en los estados requeridos por la evaluación. Los plazos y algunos detalles de transición son decisiones de implementación que deben acordarse con el equipo.
+## 8. Diagrama de Transición de Estados
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDIENTE_PAGO : Crear Orden
+    
+    PENDIENTE_PAGO --> RECHAZADA : Pago Fallido
+    PENDIENTE_PAGO --> CONFIRMACION_PENDIENTE : Pago Aprobado
+    PENDIENTE_PAGO --> VENCIDA : Tiempo agotado
+    PENDIENTE_PAGO --> REVISION_REQUERIDA : Resultado de pago incierto
+    PENDIENTE_PAGO --> CANCELADA : Cancelación de usuario
+    
+    VENCIDA --> REVISION_REQUERIDA : Pago aprobado después de vencer
+    
+    CONFIRMACION_PENDIENTE --> CONFIRMADA : Inventario consolidado
+    CONFIRMACION_PENDIENTE --> REVISION_REQUERIDA : Fallo en consolidación
+    
+    REVISION_REQUERIDA --> CONFIRMADA : Conciliación exitosa
+    REVISION_REQUERIDA --> CANCELADA : Conciliación fallida
+    
+    RECHAZADA --> [*]
+    CONFIRMADA --> [*]
+    CANCELADA --> [*]
