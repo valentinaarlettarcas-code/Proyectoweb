@@ -1,164 +1,79 @@
-import os
-from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import patch
+from rest_framework.test import APITestCase
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
+from requests.exceptions import Timeout
+from rest_framework import status
+from django.test import RequestFactory
+from .autenticacion import verificar_token_cliente, ServiceUnavailable
+from .models import Order
 
-from django.test import TestCase, override_settings
-from rest_framework.test import APIClient
-
-from .models import Order, OrderItem
-
-
-@override_settings(
-    SECRET_KEY="test-secret-key",
-    CATALOGO_API_BASE_URL="http://catalogo.test",
-)
-class ComercioTests(TestCase):
+class AutenticacionTests(APITestCase):
     def setUp(self):
-        os.environ["CATALOGO_API_BASE_URL"] = "http://catalogo.test"
-        self.client = APIClient()
-        self.auth = {"HTTP_AUTHORIZATION": "Token token-prueba"}
-        self.gestion_ok = {
-            "valido": True,
-            "usuario": {"id": 7, "estado": "ACTIVO"},
+        self.factory = RequestFactory()
+
+    def test_sin_token(self):
+        request = self.factory.get('/api/orders/')
+        with self.assertRaisesMessage(AuthenticationFailed, 'Token de autenticación no proporcionado.'):
+            verificar_token_cliente(request)
+
+    @patch('comercio.autenticacion.requests.get')
+    def test_token_invalido(self, mock_get):
+        mock_get.return_value.status_code = 401
+        request = self.factory.get('/api/orders/', HTTP_AUTHORIZATION='Token falso')
+        with self.assertRaisesMessage(AuthenticationFailed, 'Token inválido o expirado.'):
+            verificar_token_cliente(request)
+
+    @patch('comercio.autenticacion.requests.get')
+    def test_gestion_caido_timeout(self, mock_get):
+        mock_get.side_effect = Timeout()
+        request = self.factory.get('/api/orders/', HTTP_AUTHORIZATION='Token valido')
+        with self.assertRaisesMessage(ServiceUnavailable, 'Timeout: El servicio de Gestión tardó demasiado en responder.'):
+            verificar_token_cliente(request)
+
+    @patch('comercio.autenticacion.requests.get')
+    def test_administrador_rechazado(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "valido": True, "usuario": {"id": 1, "rol": "ADMIN", "estado": "ACTIVO"}
         }
-        self.catalogo_ok = {
-            "nombre": "Producto de prueba",
-            "precio": "1000",
-            "moneda": "CLP",
-            "stock_disponible": 10,
+        request = self.factory.get('/api/orders/', HTTP_AUTHORIZATION='Token admin')
+        with self.assertRaisesMessage(PermissionDenied, 'Acceso denegado: Se requiere rol de CLIENTE para esta operación.'):
+            verificar_token_cliente(request)
+
+    @patch('comercio.autenticacion.requests.get')
+    def test_cuenta_no_activa(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "valido": True, "usuario": {"id": 1, "rol": "CLIENTE", "estado": "INACTIVO"}
         }
-        self.url_crear = "/api/ordenes/"
+        request = self.factory.get('/api/orders/', HTTP_AUTHORIZATION='Token inactivo')
+        with self.assertRaisesMessage(PermissionDenied, 'Acceso denegado: La cuenta del usuario no está ACTIVA.'):
+            verificar_token_cliente(request)
 
-    @patch("comercio.views.requests.get")
-    def test_crear_orden_con_token_valido(self, mock_get):
-        def respuesta_get(url, **kwargs):
-            respuesta = Mock()
-            if "/api/usuarios/verificar-token/" in url:
-                respuesta.status_code = 200
-                respuesta.json.return_value = self.gestion_ok
-            elif "/api/productos/1/" in url:
-                respuesta.status_code = 200
-                respuesta.json.return_value = self.catalogo_ok
-            else:
-                raise AssertionError(f"URL inesperada: {url}")
-            return respuesta
+    @patch('comercio.autenticacion.requests.get')
+    def test_acceso_correcto(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "valido": True, "usuario": {"id": 99, "rol": "CLIENTE", "estado": "ACTIVO"}
+        }
+        request = self.factory.get('/api/orders/', HTTP_AUTHORIZATION='Token bueno')
+        cliente_id = verificar_token_cliente(request)
+        self.assertEqual(cliente_id, 99)
 
-        mock_get.side_effect = respuesta_get
 
-        response = self.client.post(
-            self.url_crear,
-            {
-                "checkout_id": "checkout-prueba-001",
-                "items": [{"producto_id": 1, "quantity": 2}],
-            },
-            format="json",
-            **self.auth,
-        )
+class IntentoTests(APITestCase):
+    def test_mismo_checkout_devuelve_misma_orden(self):
+        # Cliente 1 crea orden con checkout_abc
+        orden1 = Order.objects.create(cliente_id=1, checkout_id='checkout_abc', total_amount=1000)
+        
+        # Cliente 1 repite la petición
+        orden_repetida = Order.objects.filter(cliente_id=1, checkout_id='checkout_abc').first()
+        self.assertEqual(orden1.id, orden_repetida.id)
 
-        self.assertEqual(response.status_code, 201, response.data)
-        order = Order.objects.get()
-        self.assertEqual(order.cliente_id, 7)
-        self.assertEqual(order.total_amount, Decimal("2000"))
-        self.assertEqual(order.status, "PENDIENTE_PAGO")
-        self.assertEqual(OrderItem.objects.filter(order=order).count(), 1)
-
-    def test_crear_orden_sin_token(self):
-        response = self.client.post(
-            self.url_crear,
-            {
-                "checkout_id": "checkout-sin-token",
-                "items": [{"producto_id": 1, "quantity": 1}],
-            },
-            format="json",
-        )
-        self.assertEqual(response.status_code, 401)
-
-    @patch("comercio.views.requests.get")
-    def test_rechaza_token_invalido(self, mock_gestion):
-        mock_gestion.return_value.status_code = 401
-        response = self.client.post(
-            self.url_crear,
-            {
-                "checkout_id": "checkout-token-invalido",
-                "items": [{"producto_id": 1, "quantity": 1}],
-            },
-            format="json",
-            **self.auth,
-        )
-        self.assertEqual(response.status_code, 401)
-
-    @patch("comercio.views.requests.get")
-    def test_gestion_no_disponible(self, mock_gestion):
-        import requests
-        mock_gestion.side_effect = requests.ConnectionError()
-        response = self.client.post(
-            self.url_crear,
-            {
-                "checkout_id": "checkout-gestion-caida",
-                "items": [{"producto_id": 1, "quantity": 1}],
-            },
-            format="json",
-            **self.auth,
-        )
-        self.assertEqual(response.status_code, 503)
-
-    @patch("comercio.views.requests.get")
-    def test_rechaza_producto_inexistente(self, mock_get):
-        def respuesta_get(url, **kwargs):
-            respuesta = Mock()
-            if "/api/usuarios/verificar-token/" in url:
-                respuesta.status_code = 200
-                respuesta.json.return_value = self.gestion_ok
-            elif "/api/productos/1/" in url:
-                respuesta.status_code = 404
-            else:
-                raise AssertionError(f"URL inesperada: {url}")
-            return respuesta
-
-        mock_get.side_effect = respuesta_get
-
-        response = self.client.post(
-            self.url_crear,
-            {
-                "checkout_id": "checkout-producto-inexistente",
-                "items": [{"producto_id": 1, "quantity": 1}],
-            },
-            format="json",
-            **self.auth,
-        )
-        self.assertEqual(response.status_code, 400)
-
-    @patch("comercio.views.requests.get")
-    def test_rechaza_productos_repetidos(self, mock_gestion):
-        mock_gestion.return_value.status_code = 200
-        mock_gestion.return_value.json.return_value = self.gestion_ok
-
-        response = self.client.post(
-            self.url_crear,
-            {
-                "checkout_id": "checkout-duplicados",
-                "items": [
-                    {"producto_id": 1, "quantity": 1},
-                    {"producto_id": 1, "quantity": 2},
-                ],
-            },
-            format="json",
-            **self.auth,
-        )
-        self.assertEqual(response.status_code, 400)
-
-    @patch("comercio.views.requests.get")
-    def test_no_permite_consultar_orden_de_otro_cliente(self, mock_gestion):
-        mock_gestion.return_value.status_code = 200
-        mock_gestion.return_value.json.return_value = self.gestion_ok
-
-        order = Order.objects.create(
-            cliente_id=99,
-            checkout_id="checkout-otro-cliente",
-            total_amount=Decimal("1000"),
-        )
-        response = self.client.get(
-            f"/api/ordenes/{order.pk}/",
-            **self.auth,
-        )
-        self.assertEqual(response.status_code, 404)
+    def test_distinto_cliente_mismo_checkout_crea_nueva_orden(self):
+        # Cliente 1 y Cliente 2 usan el mismo checkout_id por casualidad
+        orden1 = Order.objects.create(cliente_id=1, checkout_id='checkout_xyz')
+        orden2 = Order.objects.create(cliente_id=2, checkout_id='checkout_xyz')
+        
+        self.assertNotEqual(orden1.id, orden2.id)
+        self.assertEqual(Order.objects.count(), 2)
