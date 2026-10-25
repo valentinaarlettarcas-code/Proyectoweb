@@ -1,29 +1,54 @@
 """Pruebas RF-19: usan MongoDB simulado, no prueban transacciones reales."""
+import json
 import os
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from django.test import SimpleTestCase
 from pymongo.errors import PyMongoError
 from rest_framework.test import APIClient
 
 
+TOKEN_PRUEBA = "a" * 40
+
+
 class AjusteStockAdminTests(SimpleTestCase):
     def setUp(self):
         self.cliente = APIClient()
         self.ruta = "/api/admin/productos/5/ajustar-stock/"
-        self.entorno = patch.dict(
-            os.environ, {"CATALOGO_ADMIN_TOKEN": "token-rf19"}
-        )
+        self.entorno = patch.dict(os.environ, {
+            "GESTION_VERIFICAR_TOKEN_URL":
+                "http://127.0.0.1:8001/api/usuarios/verificar-token/",
+        })
         self.entorno.start()
         self.addCleanup(self.entorno.stop)
 
-    def solicitud(self, datos=None, usuario="admin01", token="token-rf19"):
+        # Respuesta HTTP simulada de Gestion: no requiere levantar Gestion.
+        parche_http = patch("productos.autenticacion_gestion.build_opener")
+        constructor = parche_http.start()
+        self.addCleanup(parche_http.stop)
+        self.http = constructor.return_value.open
+        self.http.return_value.__enter__.return_value.read.return_value = (
+            json.dumps({
+                "valido": True,
+                "usuario": {
+                    "id": 55,
+                    "email": "admin@ejemplo.cl",
+                    "rol": "ADMIN",
+                    "estado": "ACTIVO",
+                },
+            }).encode("utf-8")
+        )
+
+    def solicitud(self, datos=None, usuario="falsificado", token=TOKEN_PRUEBA):
         encabezados = {"HTTP_X_ADMIN_ID": usuario}
         if token is not None:
-            encabezados["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+            encabezados["HTTP_AUTHORIZATION"] = f"Token {token}"
         return self.cliente.post(
             self.ruta,
-            datos if datos is not None else {"stock_fisico": 17, "motivo": "Reposicion"},
+            datos if datos is not None else {
+                "stock_fisico": 17, "motivo": "Reposicion"
+            },
             format="json",
             **encabezados,
         )
@@ -56,7 +81,10 @@ class AjusteStockAdminTests(SimpleTestCase):
             bd.productos.update_one.call_args.kwargs["session"], sesion
         )
         registro = bd.ajustes_stock.insert_one.call_args.args[0]
-        self.assertEqual(registro["usuario_id_reportado"], "admin01")
+        self.assertEqual(registro["usuario_id"], 55)
+        self.assertEqual(registro["usuario_id_reportado"], 55)
+        self.assertEqual(registro["origen_identidad"], "gestion_verificar_token")
+        self.assertEqual(respuesta.data["usuario_id"], 55)
         self.assertEqual(registro["stock_fisico_anterior"], 10)
         self.assertEqual(registro["stock_fisico_nuevo"], 17)
         self.assertEqual(registro["stock_reservado"], 2)
@@ -79,10 +107,12 @@ class AjusteStockAdminTests(SimpleTestCase):
         mock_bd.assert_not_called()
 
     @patch("productos.stock_admin_views.obtener_bd")
-    def test_rechaza_identidad_faltante(self, mock_bd):
-        respuesta = self.solicitud(usuario="")
-        self.assertEqual(respuesta.status_code, 400)
-        mock_bd.assert_not_called()
+    def test_cabecera_x_admin_id_no_controla_identidad(self, mock_bd):
+        self.configurar_bd(mock_bd)
+        respuesta = self.solicitud(usuario="usuario_falsificado")
+        self.assertEqual(respuesta.status_code, 200)
+        registro = mock_bd.return_value.ajustes_stock.insert_one.call_args.args[0]
+        self.assertEqual(registro["usuario_id"], 55)
 
     @patch("productos.stock_admin_views.obtener_bd")
     def test_rechaza_sin_autenticacion(self, mock_bd):
@@ -92,6 +122,9 @@ class AjusteStockAdminTests(SimpleTestCase):
 
     @patch("productos.stock_admin_views.obtener_bd")
     def test_rechaza_token_incorrecto(self, mock_bd):
+        self.http.side_effect = HTTPError(
+            "http://127.0.0.1:8001/", 401, "Unauthorized", None, None
+        )
         respuesta = self.solicitud(token="incorrecto")
         self.assertEqual(respuesta.status_code, 401)
         mock_bd.assert_not_called()

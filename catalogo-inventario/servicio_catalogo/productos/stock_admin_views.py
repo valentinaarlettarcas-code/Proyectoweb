@@ -2,9 +2,8 @@
 
 Stock fisico = stock.disponible + stock.reservado.
 Requiere una instalacion MongoDB que admita transacciones multidocumento.
-La cabecera X-Admin-Id es identidad DECLARADA, NO verificada por el token temporal.
+El ID de usuario proviene exclusivamente de verificar-token de Gestion.
 """
-import re
 from datetime import datetime, timezone
 
 from pymongo.errors import PyMongoError
@@ -13,7 +12,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .admin_views import AutenticacionAdministrativaTemporal
+from .autenticacion_gestion import AutenticacionGestion, EsAdminGestion
 from .mongo import obtener_bd
 
 
@@ -76,8 +75,9 @@ def _ajustar_en_transaccion(db, producto_id, stock_nuevo, motivo, usuario, sessi
 
     registro = {
         "producto_id": producto_id,
-        "usuario_id_reportado": usuario,
-        "origen_identidad": "cabecera_temporal_no_verificada",
+        "usuario_id": usuario,
+        "usuario_id_reportado": usuario,  # Alias compatible; dato ya verificado
+        "origen_identidad": "gestion_verificar_token",
         "fecha": datetime.now(timezone.utc),
         "stock_fisico_anterior": anterior,
         "stock_fisico_nuevo": stock_nuevo,
@@ -93,15 +93,16 @@ def _ajustar_en_transaccion(db, producto_id, stock_nuevo, motivo, usuario, sessi
         "stock_fisico_nuevo": stock_nuevo,
         "stock_reservado": reservado,
         "stock_disponible_nuevo": nuevo_disponible,
-        "usuario_id_reportado": usuario,
+        "usuario_id": usuario,
+        "usuario_id_reportado": usuario,  # Alias compatible (deprecado)
         "fecha": registro["fecha"].isoformat(),
         "motivo": motivo,
     }
 
 
 @api_view(["POST"])
-@authentication_classes([AutenticacionAdministrativaTemporal])
-@permission_classes([IsAuthenticated])
+@authentication_classes([AutenticacionGestion])
+@permission_classes([IsAuthenticated, EsAdminGestion])
 def ajustar_stock_admin(request, producto_id):
     """POST /api/admin/productos/<id>/ajustar-stock/."""
     serializador = AjusteStockSerializer(data=request.data)
@@ -111,13 +112,8 @@ def ajustar_stock_admin(request, producto_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    usuario = request.headers.get("X-Admin-Id", "").strip()
-    if not re.fullmatch(r"[A-Za-z0-9_.@-]{1,100}", usuario):
-        return Response(
-            {"codigo": "ADMIN_ID_REQUERIDO",
-             "mensaje": "Indicar X-Admin-Id del administrador para auditoria"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    # Identidad obtenida de Gestion, nunca de una cabecera declarada.
+    usuario = request.user.id
 
     try:
         bd = obtener_bd()
