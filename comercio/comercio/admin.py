@@ -33,8 +33,7 @@ class OrderAdmin(admin.ModelAdmin):
         "checkout_id",
         "total_amount",
         "moneda",
-        "created_at",
-        "updated_at",
+        "created_at"
     )
     inlines = [OrderItemInline]
 
