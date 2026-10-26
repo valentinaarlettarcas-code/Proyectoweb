@@ -1,3 +1,9 @@
+import hashlib
+import secrets
+from datetime import timedelta
+
+from django.utils import timezone
+from .models import TokenActivacion
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
@@ -48,7 +54,8 @@ class GestionUsuariosTests(APITestCase):
         usuario = Usuario.objects.get(email="nuevo@test.com")
 
         self.assertEqual(usuario.rol, Usuario.Rol.CLIENTE)
-        self.assertEqual(usuario.estado, Usuario.Estado.ACTIVO)
+        self.assertEqual(usuario.estado, Usuario.Estado.PENDIENTE)
+        self.assertFalse(usuario.is_active)
         self.assertTrue(usuario.check_password("Prueba1234"))
 
     def test_no_permite_email_duplicado(self):
@@ -472,9 +479,10 @@ class BloqueoConcurrenteTests(TransactionTestCase):
         )
 
         self.assertEqual(usuario.rol, Usuario.Rol.CLIENTE)
-        self.assertEqual(usuario.estado, Usuario.Estado.ACTIVO)
-        self.assertEqual(respuesta.data["usuario"]["rol"], "CLIENTE")
-
+        self.assertEqual(usuario.estado, Usuario.Estado.PENDIENTE)
+        self.assertFalse(usuario.is_active)
+        self.assertNotIn("token", respuesta.data)
+    
     def test_patch_no_permite_cambiar_rol_ni_estado(self):
         admin = Usuario.objects.create_user(
             username="admin-patch@test.com",
@@ -517,3 +525,70 @@ class BloqueoConcurrenteTests(TransactionTestCase):
         self.assertEqual(cliente.rol, Usuario.Rol.CLIENTE)
         self.assertEqual(cliente.estado, Usuario.Estado.ACTIVO)
 
+
+class ActivacionRF11Tests(APITestCase):
+
+    def setUp(self):
+        self.usuario = Usuario.objects.create_user(
+            username="rf11@test.com",
+            email="rf11@test.com",
+            password="ClaveSegura123!",
+            first_name="Ana",
+            last_name="Prueba",
+            rol=Usuario.Rol.CLIENTE,
+            estado=Usuario.Estado.PENDIENTE,
+            is_active=False
+        )
+
+        self.token = secrets.token_urlsafe(32)
+
+        self.activacion = TokenActivacion.objects.create(
+            usuario=self.usuario,
+            token_hash=hashlib.sha256(
+                self.token.encode()
+            ).hexdigest()
+        )
+
+        self.url = reverse(
+            "activar-usuario",
+            args=[self.token]
+        )
+
+    def test_enlace_activa_usuario(self):
+        respuesta = self.client.get(self.url)
+
+        self.usuario.refresh_from_db()
+        self.activacion.refresh_from_db()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(
+            self.usuario.estado,
+            Usuario.Estado.ACTIVO
+        )
+        self.assertTrue(self.usuario.is_active)
+        self.assertTrue(self.activacion.usado)
+
+    def test_enlace_no_puede_usarse_dos_veces(self):
+        primera = self.client.get(self.url)
+        segunda = self.client.get(self.url)
+
+        self.assertEqual(primera.status_code, 200)
+        self.assertEqual(segunda.status_code, 400)
+
+    def test_enlace_caducado(self):
+        TokenActivacion.objects.filter(
+            pk=self.activacion.pk
+        ).update(
+            creado=timezone.now() - timedelta(hours=25)
+        )
+
+        respuesta = self.client.get(self.url)
+
+        self.usuario.refresh_from_db()
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(
+            self.usuario.estado,
+            Usuario.Estado.PENDIENTE
+        )
+        self.assertFalse(self.usuario.is_active)

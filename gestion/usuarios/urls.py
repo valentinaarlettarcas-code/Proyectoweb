@@ -8,9 +8,11 @@ from .views import (
     BloquearUsuarioView,
     DesbloquearUsuarioView,
     VerificarTokenView,
+    ActivarUsuarioView,
 )
 
 urlpatterns = [
+    path('activar/<str:token>/',ActivarUsuarioView.as_view(),name='activar-usuario'),
     path('registro/', RegistroUsuarioView.as_view(), name='registro'),
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),

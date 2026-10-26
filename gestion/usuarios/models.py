@@ -31,3 +31,19 @@ class Usuario(AbstractUser):
 
     def __str__(self):
         return self.email
+
+class TokenActivacion(models.Model):
+    usuario = models.OneToOneField(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="token_activacion"
+    )
+
+    token_hash = models.CharField(
+        max_length=64,
+        unique=True
+    )
+
+    creado = models.DateTimeField(auto_now_add=True)
+
+    usado = models.BooleanField(default=False)

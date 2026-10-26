@@ -1,11 +1,20 @@
+import hashlib
+import secrets
+from datetime import timedelta
+
 from django.db import transaction
+from django.urls import reverse
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
+
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Usuario
+from .models import Usuario, TokenActivacion
 from .permissions import EsAdministrador
 from .serializers import (
     LoginSerializer,
@@ -16,25 +25,93 @@ from .serializers import (
 class RegistroUsuarioView(generics.CreateAPIView):
     queryset = Usuario.objects.all()
     serializer_class = RegistroUsuarioSerializer
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        usuario = serializer.save()
+
+        with transaction.atomic():
+            usuario = serializer.save()
+            usuario.estado = Usuario.Estado.PENDIENTE
+            usuario.is_active = False
+            usuario.save(update_fields=["estado", "is_active"])
+
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+            TokenActivacion.objects.create(
+                usuario=usuario,
+                token_hash=token_hash
+            )
+
+            enlace = request.build_absolute_uri(
+                reverse("activar-usuario", args=[token])
+            )
+
+            send_mail(
+                "Activa tu cuenta",
+                f"Activa tu cuenta mediante este enlace:\n{enlace}\n"
+                "El enlace caduca en 24 horas.",
+                settings.DEFAULT_FROM_EMAIL,
+                [usuario.email],
+                fail_silently=False
+            )
 
         return Response({
-            "mensaje": "Cliente registrado correctamente.",
-            "usuario": {
-                "id": usuario.id,
-                "nombre": usuario.first_name,
-                "apellido": usuario.last_name,
-                "email": usuario.email,
-                "rol": usuario.rol,
-                "estado": usuario.estado,
-            }
+            "mensaje": "Registro realizado. Revisa tu correo para activar la cuenta."
         }, status=status.HTTP_201_CREATED)
 
+class ActivarUsuarioView(APIView):
+    permission_classes = [AllowAny]
 
+    def get(self, request, token):
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+        with transaction.atomic():
+            try:
+                activacion = TokenActivacion.objects.select_for_update().get(
+                    token_hash=token_hash
+                )
+            except TokenActivacion.DoesNotExist:
+                return Response(
+                    {"error": "Enlace no válido."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if activacion.usado:
+                return Response(
+                    {"error": "Este enlace ya fue utilizado."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if timezone.now() > activacion.creado + timedelta(hours=24):
+                return Response(
+                    {"error": "El enlace ha caducado."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            usuario = Usuario.objects.select_for_update().get(
+                pk=activacion.usuario_id
+            )
+
+            if usuario.estado != Usuario.Estado.PENDIENTE:
+                return Response(
+                    {"error": "La cuenta no está pendiente de activación."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            usuario.estado = Usuario.Estado.ACTIVO
+            usuario.is_active = True
+            usuario.save(update_fields=["estado", "is_active"])
+
+            activacion.usado = True
+            activacion.save(update_fields=["usado"])
+
+        return Response({
+            "mensaje": "Cuenta activada correctamente."
+        })
+        
 class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
