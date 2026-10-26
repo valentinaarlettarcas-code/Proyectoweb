@@ -219,3 +219,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 node_modules/
+
+# Entorno local de Catálogo
+catalogo-inventario/servicio_catalogo/.env
+catalogo-inventario/servicio_catalogo/.venv/

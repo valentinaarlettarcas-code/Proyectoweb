@@ -2,6 +2,14 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _key, _value = _line.split("=", 1)
+            os.environ.setdefault(_key.strip(), _value.strip().strip(chr(39)).strip(chr(34)))
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "solo-desarrollo-no-usar-en-produccion")
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",") if h.strip()]
