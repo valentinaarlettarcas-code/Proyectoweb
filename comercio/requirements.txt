@@ -5,6 +5,11 @@ psycopg-binary==3.3.6
 requests==2.31.0
 transbank-sdk==6.1.0
 
+<<<<<<< HEAD
+python-dotenv
+django-cors-headers
+=======
 python-dotenv==1.2.4
 
 django-cors-headers==4.9.0
+>>>>>>> origin/main

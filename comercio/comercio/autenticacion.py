@@ -14,7 +14,7 @@ def verificar_token_cliente(request):
         raise exceptions.AuthenticationFailed('Token de autenticación no proporcionado.')
 
     # URL exacta de Gestión
-    url = os.environ.get('GESTION_VERIFY_TOKEN_URL', 'http://localhost:8000/api/usuarios/verificar-token/')
+    url = os.environ.get('GESTION_VERIFY_TOKEN_URL', 'http://127.0.0.1:8001/api/usuarios/verificar-token/')
     
     try:
         response = requests.get(url, headers={'Authorization': auth_header}, timeout=5.0)

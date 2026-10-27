@@ -33,7 +33,11 @@ class OrderAdmin(admin.ModelAdmin):
         "checkout_id",
         "total_amount",
         "moneda",
+<<<<<<< HEAD
+        "created_at",
+=======
         "created_at"
+>>>>>>> origin/main
     )
     inlines = [OrderItemInline]
 

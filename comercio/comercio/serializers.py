@@ -5,6 +5,7 @@ import requests
 from django.db import transaction
 from rest_framework import serializers
 
+from .catalogo_client import CatalogoError, reservar
 from .models import Order, OrderItem
 
 
@@ -92,7 +93,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 "subtotal": subtotal,
             })
 
-        # Se crea en estado pendiente. Aún no hay integración de pago ni reserva en este parche.
+        # Crear la orden y sus líneas antes de solicitar la reserva remota.
         with transaction.atomic():
             order = Order.objects.create(
                 **validated_data,
@@ -112,6 +113,32 @@ class OrderSerializer(serializers.ModelSerializer):
                 )
                 for item in productos
             ])
+
+        # La reserva usa un identificador determinista para facilitar reintentos.
+        reserva_id = f"orden-{order.pk}"
+        try:
+            reservar(
+                reserva_id=reserva_id,
+                orden_id=order.pk,
+                productos=[
+                    {
+                        "producto_id": item["producto_id"],
+                        "quantity": item["quantity"],
+                    }
+                    for item in productos
+                ],
+            )
+        except CatalogoError as exc:
+            # Una orden sin reserva no debe quedar habilitada para pago.
+            nuevo_estado = (
+                "RECHAZADA"
+                if exc.status_code in (400, 409)
+                else "REVISION_REQUERIDA"
+            )
+            Order.objects.filter(pk=order.pk).update(status=nuevo_estado)
+            order.status = nuevo_estado
+            raise
+
         return order
 
     def to_representation(self, instance):
