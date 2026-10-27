@@ -110,7 +110,7 @@ Pendiente (Sprint 6, HU-12 a HU-14):
 - Confirmar la transacción al volver de Webpay, verificando autorización, importe y moneda, sin procesar dos veces el mismo resultado.
 - Consolidar el stock, confirmar la orden y liberar la reserva si el pago falla.
 - Hoy, si Catálogo no está disponible, la creación de la orden responde 400; debe responder 503.
-- Unificar los códigos de autenticación de los dos endpoints (según el código, hoy 403 en órdenes y 401 en pagos; falta comprobarlo con el servicio en ejecución).
+- Unificar los códigos de autenticación de los dos endpoints (comprobado con el servicio en ejecución: hoy 403 en órdenes y 401 en pagos).
 
 ## Configuración
 
