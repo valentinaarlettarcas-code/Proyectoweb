@@ -34,6 +34,8 @@ Usuarios (`/api/usuarios/`):
 - `GET <id>/` y `PUT/PATCH <id>/`
 - `POST <id>/bloquear/` y `POST <id>/desbloquear/`
 - `GET verificar-token/`
+- `POST admin/crear/` (solo administrador: crea un usuario pendiente de activación y le envía el token por correo)
+- `POST establecer-password/` (público: define la contraseña con el token recibido por correo; un solo uso, vigencia de 24 horas)
 
 Contenidos (`/api/contenidos/`):
 
