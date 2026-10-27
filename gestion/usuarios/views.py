@@ -1,35 +1,119 @@
+import hashlib
+import secrets
+from datetime import timedelta
+
+from django.db import transaction
+from django.urls import reverse
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
+
 from rest_framework import generics, status
+from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authtoken.models import Token
 
-from .models import Usuario
-from .serializers import RegistroUsuarioSerializer, LoginSerializer, UsuarioSerializer
+from .models import Usuario, TokenActivacion
 from .permissions import EsAdministrador
+from .serializers import (
+    LoginSerializer,
+    RegistroUsuarioSerializer,
+    UsuarioSerializer,
+    CrearUsuarioAdminSerializer,
+    EstablecerPasswordSerializer,
+)
 
 class RegistroUsuarioView(generics.CreateAPIView):
     queryset = Usuario.objects.all()
     serializer_class = RegistroUsuarioSerializer
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        usuario = serializer.save()
+
+        with transaction.atomic():
+            usuario = serializer.save()
+            usuario.estado = Usuario.Estado.PENDIENTE
+            usuario.is_active = False
+            usuario.save(update_fields=["estado", "is_active"])
+
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+            TokenActivacion.objects.create(
+                usuario=usuario,
+                token_hash=token_hash
+            )
+
+            enlace = request.build_absolute_uri(
+                reverse("activar-usuario", args=[token])
+            )
+
+            send_mail(
+                "Activa tu cuenta",
+                f"Activa tu cuenta mediante este enlace:\n{enlace}\n"
+                "El enlace caduca en 24 horas.",
+                settings.DEFAULT_FROM_EMAIL,
+                [usuario.email],
+                fail_silently=False
+            )
 
         return Response({
-            "mensaje": "Cliente registrado correctamente.",
-            "usuario": {
-                "id": usuario.id,
-                "nombre": usuario.first_name,
-                "apellido": usuario.last_name,
-                "email": usuario.email,
-                "rol": usuario.rol,
-                "estado": usuario.estado,
-            }
+            "mensaje": "Registro realizado. Revisa tu correo para activar la cuenta."
         }, status=status.HTTP_201_CREATED)
 
+class ActivarUsuarioView(APIView):
+    permission_classes = [AllowAny]
 
+    def get(self, request, token):
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+        with transaction.atomic():
+            try:
+                activacion = TokenActivacion.objects.select_for_update().get(
+                    token_hash=token_hash
+                )
+            except TokenActivacion.DoesNotExist:
+                return Response(
+                    {"error": "Enlace no válido."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if activacion.usado:
+                return Response(
+                    {"error": "Este enlace ya fue utilizado."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if timezone.now() > activacion.creado + timedelta(hours=24):
+                return Response(
+                    {"error": "El enlace ha caducado."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            usuario = Usuario.objects.select_for_update().get(
+                pk=activacion.usuario_id
+            )
+
+            if usuario.estado != Usuario.Estado.PENDIENTE:
+                return Response(
+                    {"error": "La cuenta no está pendiente de activación."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            usuario.estado = Usuario.Estado.ACTIVO
+            usuario.is_active = True
+            usuario.save(update_fields=["estado", "is_active"])
+
+            activacion.usado = True
+            activacion.save(update_fields=["usado"])
+
+        return Response({
+            "mensaje": "Cuenta activada correctamente."
+        })
+        
 class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -91,40 +175,56 @@ class BloquearUsuarioView(APIView):
     permission_classes = [EsAdministrador]
 
     def post(self, request, pk):
-        try:
-            usuario = Usuario.objects.get(pk=pk)
-        except Usuario.DoesNotExist:
-            return Response(
-                {"error": "Usuario no encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
 
-        if usuario == request.user:
-            return Response(
-                {"error": "No puedes bloquear tu propia cuenta."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if usuario.rol == Usuario.Rol.ADMIN:
-            admins_activos = Usuario.objects.filter(
-                rol=Usuario.Rol.ADMIN,
-                estado=Usuario.Estado.ACTIVO
-            ).count()
-
-            if usuario.estado == Usuario.Estado.ACTIVO and admins_activos <= 1:
+        with transaction.atomic():
+            try:
+                usuario = Usuario.objects.get(pk=pk)
+            except Usuario.DoesNotExist:
                 return Response(
-                    {"error": "No se puede bloquear al último administrador activo."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "Usuario no encontrado."},
+                    status=status.HTTP_404_NOT_FOUND
                 )
 
-        usuario.estado = Usuario.Estado.BLOQUEADO
-        usuario.save(update_fields=['estado'])
+            if usuario.pk == request.user.pk:
+                return Response(
+                    {"error": "No puedes bloquear tu propia cuenta."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
-        # Invalida inmediatamente su sesión/token anterior.
-        Token.objects.filter(user=usuario).delete()
+            if usuario.rol == Usuario.Rol.ADMIN:
+                # Bloqueamos todos los administradores en orden estable.
+                # Esto serializa los bloqueos concurrentes de admins.
+                administradores = list(
+                    Usuario.objects.select_for_update()
+                    .filter(rol=Usuario.Rol.ADMIN)
+                    .order_by("pk")
+                )
+
+                usuario = next(
+                    admin for admin in administradores
+                    if admin.pk == pk
+                )
+
+                activos = sum(
+                    admin.estado == Usuario.Estado.ACTIVO
+                    for admin in administradores
+                )
+
+                if usuario.estado == Usuario.Estado.ACTIVO and activos <= 1:
+                    return Response(
+                        {"error": "No se puede bloquear al ultimo administrador activo."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                usuario = Usuario.objects.select_for_update().get(pk=pk)
+
+            usuario.estado = Usuario.Estado.BLOQUEADO
+            usuario.save(update_fields=["estado"])
+
+            # Invalidar el token en la misma transaccion.
+            Token.objects.filter(user=usuario).delete()
 
         return Response({"mensaje": "Usuario bloqueado correctamente."})
-
 
 class DesbloquearUsuarioView(APIView):
     permission_classes = [EsAdministrador]
@@ -138,11 +238,25 @@ class DesbloquearUsuarioView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        usuario.estado = Usuario.Estado.ACTIVO
-        usuario.save(update_fields=['estado'])
+        if usuario.estado == Usuario.Estado.BLOQUEADO:
+            if usuario.is_active:
+                usuario.estado = Usuario.Estado.ACTIVO
+                usuario.save(update_fields=["estado"])
 
-        return Response({"mensaje": "Usuario desbloqueado correctamente."})
-
+                return Response({
+                    "mensaje": "Usuario desbloqueado correctamente."
+                })
+            else:
+                return Response(
+                    {"error": "La cuenta nunca ha sido activada."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            return Response(
+                {"error": "Solo se pueden desbloquear usuarios bloqueados."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
 class VerificarTokenView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -164,3 +278,123 @@ class VerificarTokenView(APIView):
                 "estado": usuario.estado,
             }
         })
+
+
+class CrearUsuarioAdminView(generics.GenericAPIView):
+    serializer_class = CrearUsuarioAdminSerializer
+    permission_classes = [EsAdministrador]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            usuario = serializer.save()
+
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+            TokenActivacion.objects.create(
+                usuario=usuario,
+                token_hash=token_hash,
+            )
+
+            send_mail(
+                "Configura tu cuenta",
+                (
+                    "Se ha creado una cuenta para ti.\n\n"
+                    "Para establecer tu contraseña, utiliza este token:\n"
+                    f"{token}\n\n"
+                    "Envía el token y tu nueva contraseña al endpoint:\n"
+                    f"{request.build_absolute_uri(reverse('establecer-password'))}\n\n"
+                    "El token caduca en 24 horas y solo puede utilizarse una vez."
+                ),
+                settings.DEFAULT_FROM_EMAIL,
+                [usuario.email],
+                fail_silently=False,
+            )
+
+        return Response(
+            {
+                "mensaje": "Usuario creado. Se ha enviado el token de configuración.",
+                "id": usuario.pk,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class EstablecerPasswordView(generics.GenericAPIView):
+    serializer_class = EstablecerPasswordSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        datos = serializer.validated_data
+        token_hash = hashlib.sha256(datos["token"].encode()).hexdigest()
+
+        with transaction.atomic():
+            try:
+                activacion = TokenActivacion.objects.select_for_update().get(
+                    token_hash=token_hash
+                )
+            except TokenActivacion.DoesNotExist:
+                return Response(
+                    {"error": "Token inválido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if activacion.usado:
+                return Response(
+                    {"error": "El token ya se utilizó."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if timezone.now() > activacion.creado + timedelta(hours=24):
+                return Response(
+                    {"error": "El token ha caducado."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            usuario = Usuario.objects.select_for_update().get(
+                pk=activacion.usuario_id
+            )
+
+            if usuario.estado != Usuario.Estado.PENDIENTE:
+                return Response(
+                    {"error": "La cuenta no está pendiente."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if usuario.has_usable_password():
+                return Response(
+                    {"error": "La cuenta ya tiene una contraseña."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError
+
+            try:
+                validate_password(datos["password"], user=usuario)
+            except ValidationError as error:
+                return Response(
+                    {"password": error.messages},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            usuario.set_password(datos["password"])
+            usuario.estado = Usuario.Estado.ACTIVO
+            usuario.is_active = True
+            usuario.save(update_fields=["password", "estado", "is_active"])
+
+            activacion.usado = True
+            activacion.save(update_fields=["usado"])
+
+        return Response(
+            {"mensaje": "Contraseña configurada y cuenta activada."},
+            status=status.HTTP_200_OK,
+        )
+

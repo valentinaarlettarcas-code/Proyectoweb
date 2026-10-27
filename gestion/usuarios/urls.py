@@ -8,9 +8,13 @@ from .views import (
     BloquearUsuarioView,
     DesbloquearUsuarioView,
     VerificarTokenView,
+    ActivarUsuarioView,
+    CrearUsuarioAdminView,
+    EstablecerPasswordView,
 )
 
 urlpatterns = [
+    path('activar/<str:token>/',ActivarUsuarioView.as_view(),name='activar-usuario'),
     path('registro/', RegistroUsuarioView.as_view(), name='registro'),
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
@@ -19,4 +23,6 @@ urlpatterns = [
     path('<int:pk>/bloquear/', BloquearUsuarioView.as_view(), name='bloquear-usuario'),
     path('<int:pk>/desbloquear/', DesbloquearUsuarioView.as_view(), name='desbloquear-usuario'),
     path('verificar-token/', VerificarTokenView.as_view(), name='verificar-token'),
+    path("admin/crear/", CrearUsuarioAdminView.as_view(), name="crear-usuario-admin"),
+    path("establecer-password/", EstablecerPasswordView.as_view(), name="establecer-password"),
 ]
