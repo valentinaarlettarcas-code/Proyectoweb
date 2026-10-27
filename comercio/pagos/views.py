@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -12,30 +14,24 @@ from transbank.common.options import WebpayOptions
 from transbank.error.transbank_error import TransbankError
 from transbank.webpay.webpay_plus.transaction import Transaction
 
-from comercio.models import Order, OrderItem
-from decimal import Decimal
-
+from comercio.models import Order
 from .models import IntentoPago
 from .serializers import CrearIntentoPagoSerializer, IntentoPagoSerializer
 
-
-# Token de prueba para desarrollo. Solo funciona con DEBUG=True.
-DEV_TOKEN = "Token dev-test"
-DEV_CLIENTE_ID = 1
+logger = logging.getLogger(__name__)
 
 
-def _verificar_token(request):
-    """Valida el token con Gestion. Si DEBUG=True acepta un token de prueba."""
+def _verificar_cliente(request):
+    """Valida el token con Gestion y exige rol CLIENTE.
+    TODO: cuando Jani publique su verificador, reemplazar 
+    Retorna (cliente_id, error_response).
+    """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header or not auth_header.lower().startswith("token "):
         return None, Response(
             {"error": "Se requiere Authorization: Token <token>"},
             status=status.HTTP_401_UNAUTHORIZED,
         )
-
-    # Bypass solo en desarrollo
-    if settings.DEBUG and auth_header == DEV_TOKEN:
-        return DEV_CLIENTE_ID, None
 
     gestion_url = settings.GESTION_VERIFY_TOKEN_URL
     try:
@@ -45,6 +41,7 @@ def _verificar_token(request):
             timeout=5,
         )
     except requests.RequestException:
+        logger.warning("Servicio de Gestion no disponible al verificar token")
         return None, Response(
             {"error": "Servicio de Gestion no disponible"},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -60,46 +57,66 @@ def _verificar_token(request):
         payload = resp.json()
         usuario = payload.get("usuario", {})
         cliente_id = usuario.get("id")
-        activo = str(usuario.get("estado", "")).lower() == "activo"
+        rol = str(usuario.get("rol", "")).upper()
+        estado = str(usuario.get("estado", "")).lower()
     except (ValueError, AttributeError):
+        logger.error("Respuesta invalida de Gestion al verificar token")
         return None, Response(
             {"error": "Respuesta invalida de Gestion"},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
-    if not payload.get("valido") or not cliente_id or not activo:
+    if not payload.get("valido") or not cliente_id:
         return None, Response(
-            {"error": "Gestion no confirmo un usuario activo"},
+            {"error": "Token invalido"},
             status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    if estado != "activo":
+        return None, Response(
+            {"error": "Cuenta no activa"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # RF-10: administradores no pueden pagar.
+    if rol != "CLIENTE":
+        return None, Response(
+            {"error": "Solo los clientes pueden pagar"},
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     return cliente_id, None
 
 
-def _buy_order(order):
-    return "ORD" + str(order.id).rjust(8, "0")[:23]
+def _buy_order(order, intentos_previos):
+    """Genera buy_order unico. Incluye contador para evitar colisiones."""
+    base = f"ORD{str(order.id).rjust(8, '0')}"
+    # Si ya existe, agregar sufijo numerico
+    sufijo = intentos_previos
+    return f"{base}{sufijo:02d}"[:26]
 
 
 class CrearIntentoPagoView(APIView):
-    #POST /api/ordenes/<order_id>/payment-attempts/
+    """POST /api/ordenes/<order_id>/payment-attempts/"""
 
     permission_classes = []
 
     def post(self, request, order_id):
-        cliente_id, error = _verificar_token(request)
+        cliente_id, error = _verificar_cliente(request)
         if error is not None:
             return error
 
         order = get_object_or_404(Order, pk=order_id)
 
-        # En dev bypass, no validamos propiedad (cliente_id es siempre 1).
-        if not settings.DEBUG or request.headers.get("Authorization") != DEV_TOKEN:
-            if order.cliente_id != cliente_id:
-                return Response(
-                    {"error": "Orden no encontrada"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        # RF-10: cliente solo paga sus propias ordenes.
+        if order.cliente_id != cliente_id:
+            # 404 para no revelar existencia de la orden (RF-10, seguridad)
+            return Response(
+                {"error": "Orden no encontrada"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
+        # RF-27: la orden debe estar pendiente de pago.
         if order.status != "PENDIENTE_PAGO":
             return Response({"error": {
                 "code": "INVALID_STATE_TRANSITION",
@@ -110,6 +127,7 @@ class CrearIntentoPagoView(APIView):
         serializer.is_valid(raise_exception=True)
         return_url = serializer.validated_data["return_url"]
 
+        # Idempotencia: si ya existe intento PENDIENTE, devolverlo (doble clic).
         previo = order.intentos_pago.filter(
             status=IntentoPago.Estado.PENDIENTE
         ).first()
@@ -118,9 +136,12 @@ class CrearIntentoPagoView(APIView):
                 IntentoPagoSerializer(previo).data, status=status.HTTP_200_OK
             )
 
+        # Contar intentos previos para generar buy_order unico.
+        intentos_previos = order.intentos_pago.count()
+
         intento = IntentoPago.objects.create(
             order=order,
-            buy_order=_buy_order(order),
+            buy_order=_buy_order(order, intentos_previos),
             session_id=f"ses-{order.id}"[:61],
             amount=order.total_amount,
             currency=order.moneda,
@@ -146,15 +167,26 @@ class CrearIntentoPagoView(APIView):
                 amount=int(intento.amount),
                 return_url=return_url,
             )
-        except Exception as exc:
-            import traceback
-            traceback.print_exc()
-            print(f"ERROR CREANDO INTENTO: {type(exc).__name__}: {exc}")
+        except TransbankError:
+            logger.exception(
+                "Error de Transbank al crear intento para orden %s", order.id
+            )
             intento.status = IntentoPago.Estado.REVISION
             intento.save(update_fields=["status", "updated_at"])
             return Response({"error": {
                 "code": "PAYMENT_PROVIDER_ERROR",
-                "message": f"No se pudo crear el intento de pago: {type(exc).__name__}: {exc}",
+                "message": "No se pudo crear el intento de pago.",
+            }}, status=status.HTTP_502_BAD_GATEWAY)
+        except Exception:
+            # logea y no expone detalles al cliente.
+            logger.exception(
+                "Error inesperado al crear intento para orden %s", order.id
+            )
+            intento.status = IntentoPago.Estado.REVISION
+            intento.save(update_fields=["status", "updated_at"])
+            return Response({"error": {
+                "code": "PAYMENT_PROVIDER_ERROR",
+                "message": "No se pudo crear el intento de pago.",
             }}, status=status.HTTP_502_BAD_GATEWAY)
 
         intento.token_ws = resp["token"]
@@ -169,51 +201,7 @@ class CrearIntentoPagoView(APIView):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def webhook_pago(request):
-    #Webhook declarativo. Webpay Plus no lo usa, queda para H3.
-    return Response({"recibido": True}, status=status.HTTP_200_OK)
-
-
-# ------------------------- DESARROLLO --------------------------------
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def dev_crear_orden_prueba(request):
-    #Endpoint de desarrollo. Crea una Order sin Gestion ni Catalogo
-    if not settings.DEBUG:
-        return Response(
-            {"error": "Endpoint no disponible en produccion"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    # Generar checkout_id unico cada vez (timestamp + random)
-    import time
-    import random
-    checkout_id = f"dev-{int(time.time())}-{random.randint(100, 999)}"
-
-    precio = Decimal("30000")
-    cantidad = 1
-    total = precio * cantidad
-
-    order = Order.objects.create(
-        cliente_id=DEV_CLIENTE_ID,
-        checkout_id=checkout_id,
-        status="PENDIENTE_PAGO",
-        total_amount=total,
-        moneda="CLP",
+    return Response(
+        {"error": "Webhook no implementado"},
+        status=status.HTTP_501_NOT_IMPLEMENTED,
     )
-    OrderItem.objects.create(
-        order=order,
-        producto_id=1,
-        historical_product_name="Teclado Mecanico Dev",
-        historical_price=precio,
-        moneda="CLP",
-        quantity=cantidad,
-        subtotal=total,
-    )
-
-    return Response({
-        "id": order.id,
-        "checkout_id": order.checkout_id,
-        "status": order.status,
-        "total_amount": str(order.total_amount),
-        "moneda": order.moneda,
-    }, status=status.HTTP_201_CREATED)
