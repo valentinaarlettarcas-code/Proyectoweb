@@ -95,8 +95,10 @@ GESTION_VERIFY_TOKEN_URL = os.environ.get(
 )
 CATALOGO_API_BASE_URL = os.environ.get("CATALOGO_API_BASE_URL", "http://127.0.0.1:8002/api")
 
-TBK_COMMERCE_CODE = os.environ.get("TBK_COMMERCE_CODE", "597055555532")
-TBK_API_KEY = os.environ.get("TBK_API_KEY", "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C")
+# Transbank Webpay Plus sandbox (Integration).
+# Las credenciales se cargan desde .env
+TBK_COMMERCE_CODE = os.environ.get("TBK_COMMERCE_CODE", "")
+TBK_API_KEY = os.environ.get("TBK_API_KEY", "")
 TBK_ENVIRONMENT = os.environ.get("TBK_ENVIRONMENT", "TEST")
 TBK_RETURN_URL = os.environ.get("TBK_RETURN_URL", "http://localhost:5173/pago/retorno")
 TBK_ALLOWED_RETURN_URLS = [
@@ -104,3 +106,5 @@ TBK_ALLOWED_RETURN_URLS = [
         "TBK_ALLOWED_RETURN_URLS", TBK_RETURN_URL
     ).split(",") if u.strip()
 ]
+
+TEST_RUNNER = "pagos.tests.MensajeEspanolRunner"
