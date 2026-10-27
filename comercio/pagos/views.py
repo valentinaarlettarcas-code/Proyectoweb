@@ -1,6 +1,6 @@
 import requests
 from django.conf import settings
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -13,67 +13,30 @@ from transbank.error.transbank_error import TransbankError
 from transbank.webpay.webpay_plus.transaction import Transaction
 
 from comercio.models import Order, OrderItem
+from comercio.catalogo_client import consolidar, liberar
 from decimal import Decimal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from .models import IntentoPago
 from .serializers import CrearIntentoPagoSerializer, IntentoPagoSerializer
 
 
-# Token de prueba para desarrollo. Solo funciona con DEBUG=True.
-DEV_TOKEN = "Token dev-test"
-DEV_CLIENTE_ID = 1
-
-
 def _verificar_token(request):
-    """Valida el token con Gestion. Si DEBUG=True acepta un token de prueba."""
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header or not auth_header.lower().startswith("token "):
-        return None, Response(
-            {"error": "Se requiere Authorization: Token <token>"},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
+    """Usa la autenticación compartida del servicio."""
+    from comercio.autenticacion import verificar_token_cliente, ServiceUnavailable
 
-    # Bypass solo en desarrollo
-    if settings.DEBUG and auth_header == DEV_TOKEN:
-        return DEV_CLIENTE_ID, None
-
-    gestion_url = settings.GESTION_VERIFY_TOKEN_URL
     try:
-        resp = requests.get(
-            gestion_url,
-            headers={"Authorization": auth_header, "Accept": "application/json"},
-            timeout=5,
-        )
-    except requests.RequestException:
+        return verificar_token_cliente(request), None
+    except ServiceUnavailable as exc:
         return None, Response(
-            {"error": "Servicio de Gestion no disponible"},
+            {"error": str(exc)},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
-
-    if resp.status_code != 200:
+    except Exception as exc:
         return None, Response(
-            {"error": "Token invalido o cuenta no activa"},
-            status=status.HTTP_401_UNAUTHORIZED,
+            {"error": str(exc)},
+            status=getattr(exc, "status_code", status.HTTP_401_UNAUTHORIZED),
         )
-
-    try:
-        payload = resp.json()
-        usuario = payload.get("usuario", {})
-        cliente_id = usuario.get("id")
-        activo = str(usuario.get("estado", "")).lower() == "activo"
-    except (ValueError, AttributeError):
-        return None, Response(
-            {"error": "Respuesta invalida de Gestion"},
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
-
-    if not payload.get("valido") or not cliente_id or not activo:
-        return None, Response(
-            {"error": "Gestion no confirmo un usuario activo"},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-
-    return cliente_id, None
 
 
 def _buy_order(order):
@@ -93,12 +56,11 @@ class CrearIntentoPagoView(APIView):
         order = get_object_or_404(Order, pk=order_id)
 
         # En dev bypass, no validamos propiedad (cliente_id es siempre 1).
-        if not settings.DEBUG or request.headers.get("Authorization") != DEV_TOKEN:
-            if order.cliente_id != cliente_id:
-                return Response(
-                    {"error": "Orden no encontrada"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        if order.cliente_id != cliente_id:
+            return Response(
+                {"error": "Orden no encontrada"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         if order.status != "PENDIENTE_PAGO":
             return Response({"error": {
@@ -144,7 +106,7 @@ class CrearIntentoPagoView(APIView):
                 buy_order=intento.buy_order,
                 session_id=intento.session_id,
                 amount=int(intento.amount),
-                return_url=return_url,
+                return_url=_url_webpay_return(),
             )
         except Exception as exc:
             import traceback
@@ -174,6 +136,152 @@ def webhook_pago(request):
 
 
 # ------------------------- DESARROLLO --------------------------------
+# RETORNO_WEBPAY_COMERCIO
+def _url_webpay_return():
+    configured = getattr(settings, "TBK_BACKEND_RETURN_URL", "")
+    if configured:
+        return configured
+    return urlunsplit((
+        "http", "127.0.0.1:8000", "/api/payments/return/", "", ""
+    ))
+
+
+def _redirigir_resultado_pago(intento, estado):
+    allowed = getattr(settings, "TBK_ALLOWED_RETURN_URLS", [])
+    if isinstance(allowed, str):
+        allowed = [item.strip() for item in allowed.split(",") if item.strip()]
+
+    destination = intento.return_url
+    if destination not in allowed:
+        return Response(
+            {"error": "La URL de retorno guardada no está permitida."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    parts = urlsplit(destination)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["payment_status"] = estado
+    query["order_id"] = str(intento.order_id)
+    return redirect(urlunsplit((
+        parts.scheme, parts.netloc, parts.path,
+        urlencode(query), parts.fragment
+    )))
+
+
+def _marcar_revision(intento):
+    intento.status = IntentoPago.Estado.REVISION
+    intento.save(update_fields=["status", "updated_at"])
+    intento.order.status = "REVISION_REQUERIDA"
+    intento.order.save(update_fields=["status", "updated_at"])
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def retorno_webpay(request):
+    token_ws = request.data.get("token_ws")
+
+    # Webpay puede volver sin token_ws cuando el usuario cancela.
+    if not token_ws:
+        buy_order = request.data.get("TBK_ORDEN_COMPRA")
+        session_id = request.data.get("TBK_ID_SESION")
+        if not buy_order or not session_id:
+            return Response(
+                {"error": "Faltan los datos de retorno de Webpay."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        intento = IntentoPago.objects.select_related("order").filter(
+            buy_order=str(buy_order),
+            session_id=str(session_id),
+        ).first()
+        if intento is None:
+            return Response({"error": "Intento de pago no encontrado."}, status=404)
+
+        if intento.status != IntentoPago.Estado.PENDIENTE:
+            return _redirigir_resultado_pago(intento, intento.order.status)
+
+        try:
+            liberar(f"orden-{intento.order_id}", "PAGO_CANCELADO")
+        except Exception:
+            _marcar_revision(intento)
+            return _redirigir_resultado_pago(intento, "REVISION_REQUERIDA")
+
+        intento.status = IntentoPago.Estado.ANULADO
+        intento.save(update_fields=["status", "updated_at"])
+        intento.order.status = "CANCELADA"
+        intento.order.save(update_fields=["status", "updated_at"])
+        return _redirigir_resultado_pago(intento, intento.order.status)
+
+    intento = IntentoPago.objects.select_related("order").filter(
+        token_ws=token_ws
+    ).first()
+    if intento is None:
+        return Response({"error": "Intento de pago no encontrado."}, status=404)
+
+    if intento.status != IntentoPago.Estado.PENDIENTE:
+        return _redirigir_resultado_pago(intento, intento.order.status)
+
+    try:
+        integration = {
+            "TEST": IntegrationType.TEST,
+            "LIVE": IntegrationType.LIVE,
+        }.get(settings.TBK_ENVIRONMENT, IntegrationType.TEST)
+        tx = Transaction(WebpayOptions(
+            commerce_code=settings.TBK_COMMERCE_CODE,
+            api_key=settings.TBK_API_KEY,
+            integration_type=integration,
+        ))
+        resultado = tx.commit(token_ws)
+    except Exception:
+        _marcar_revision(intento)
+        return _redirigir_resultado_pago(intento, "REVISION_REQUERIDA")
+
+    # Verificar orden, sesión e importe antes de aplicar el resultado.
+    try:
+        valido = (
+            str(resultado["buy_order"]) == intento.buy_order
+            and str(resultado["session_id"]) == intento.session_id
+            and Decimal(str(resultado["amount"])) == intento.amount
+        )
+        codigo = int(resultado["response_code"])
+    except (KeyError, TypeError, ValueError):
+        valido = False
+        codigo = -1
+
+    if not valido:
+        _marcar_revision(intento)
+        return _redirigir_resultado_pago(intento, "REVISION_REQUERIDA")
+
+    if codigo == 0:
+        intento.status = IntentoPago.Estado.APROBADO
+        intento.save(update_fields=["status", "updated_at"])
+        intento.order.status = "CONFIRMACION_PENDIENTE"
+        intento.order.save(update_fields=["status", "updated_at"])
+
+        try:
+            consolidar(f"orden-{intento.order_id}")
+        except Exception:
+            intento.order.status = "REVISION_REQUERIDA"
+            intento.order.save(update_fields=["status", "updated_at"])
+            return _redirigir_resultado_pago(intento, "REVISION_REQUERIDA")
+
+        intento.order.status = "CONFIRMADA"
+        intento.order.save(update_fields=["status", "updated_at"])
+        return _redirigir_resultado_pago(intento, intento.order.status)
+
+    try:
+        liberar(f"orden-{intento.order_id}", "PAGO_RECHAZADO")
+    except Exception:
+        _marcar_revision(intento)
+        return _redirigir_resultado_pago(intento, "REVISION_REQUERIDA")
+
+    intento.status = IntentoPago.Estado.RECHAZADO
+    intento.save(update_fields=["status", "updated_at"])
+    intento.order.status = "RECHAZADA"
+    intento.order.save(update_fields=["status", "updated_at"])
+    return _redirigir_resultado_pago(intento, intento.order.status)
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def dev_crear_orden_prueba(request):
@@ -193,8 +301,9 @@ def dev_crear_orden_prueba(request):
     cantidad = 1
     total = precio * cantidad
 
+    # Identificador fijo solo para crear órdenes de prueba en DEBUG.
     order = Order.objects.create(
-        cliente_id=DEV_CLIENTE_ID,
+        cliente_id=1,
         checkout_id=checkout_id,
         status="PENDIENTE_PAGO",
         total_amount=total,

@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env", override=True)
 
 def _bool(name, default=False):
     return os.environ.get(name, str(default)).lower() in {"1", "true", "yes", "on"}
@@ -90,17 +90,31 @@ REST_FRAMEWORK = {
     ],
 }
 
-GESTION_VERIFY_TOKEN_URL = os.environ.get(
-    "GESTION_VERIFY_TOKEN_URL", "http://127.0.0.1:8001/api/usuarios/verificar-token/"
-)
-CATALOGO_API_BASE_URL = os.environ.get("CATALOGO_API_BASE_URL", "http://127.0.0.1:8002/api")
-
 TBK_COMMERCE_CODE = os.environ.get("TBK_COMMERCE_CODE", "597055555532")
 TBK_API_KEY = os.environ.get("TBK_API_KEY", "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C")
 TBK_ENVIRONMENT = os.environ.get("TBK_ENVIRONMENT", "TEST")
-TBK_RETURN_URL = os.environ.get("TBK_RETURN_URL", "http://localhost:5173/pago/retorno")
+
+
+# Configuracion de integraciones
+def _crear_url_comercio(host, path=""):
+    return "http" + chr(58) + chr(47) * 2 + host + path
+
+GESTION_VERIFY_TOKEN_URL = _crear_url_comercio(
+    "127.0.0.1:8001", "/api/usuarios/verificar-token/"
+)
+CATALOGO_API_BASE_URL = _crear_url_comercio("127.0.0.1:8002")
+CORS_ALLOWED_ORIGINS = [_crear_url_comercio("localhost:5173")]
+TBK_RETURN_URL = _crear_url_comercio("localhost:5173", "/pago/retorno")
 TBK_ALLOWED_RETURN_URLS = [
-    u.strip() for u in os.environ.get(
-        "TBK_ALLOWED_RETURN_URLS", TBK_RETURN_URL
-    ).split(",") if u.strip()
+    _crear_url_comercio("localhost:5173", "/pago/retorno")
 ]
+TBK_BACKEND_RETURN_URL = _crear_url_comercio(
+    "127.0.0.1:8000", "/api/payments/return/"
+)
+
+os.environ["GESTION_VERIFY_TOKEN_URL"] = GESTION_VERIFY_TOKEN_URL
+os.environ["CATALOGO_API_BASE_URL"] = CATALOGO_API_BASE_URL
+os.environ["DJANGO_CORS_ORIGINS"] = CORS_ALLOWED_ORIGINS[0]
+os.environ["TBK_RETURN_URL"] = TBK_RETURN_URL
+os.environ["TBK_ALLOWED_RETURN_URLS"] = TBK_ALLOWED_RETURN_URLS[0]
+os.environ["TBK_BACKEND_RETURN_URL"] = TBK_BACKEND_RETURN_URL

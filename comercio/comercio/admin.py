@@ -34,7 +34,6 @@ class OrderAdmin(admin.ModelAdmin):
         "total_amount",
         "moneda",
         "created_at",
-        "updated_at",
     )
     inlines = [OrderItemInline]
 
