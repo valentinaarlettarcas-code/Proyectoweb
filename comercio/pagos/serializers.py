@@ -23,6 +23,6 @@ class IntentoPagoSerializer(serializers.ModelSerializer):
         model = IntentoPago
         fields = [
             "payment_attempt_id", "order_id", "status",
-            "checkout_url", "currency", "amount", "buy_order", "created_at",
+            "checkout_url","token_ws" , "currency", "amount", "buy_order", "created_at",
         ]
         read_only_fields = fields
