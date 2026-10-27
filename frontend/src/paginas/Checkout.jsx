@@ -22,7 +22,7 @@ function Checkout() {
         const urlConToken = `${intento.checkout_url}?token_ws=${intento.token_ws}`;
         window.location.href = urlConToken;
       } else {
-          throw new Error('El backend no devolvió una URL de pago válida.');
+        throw new Error('El backend no devolvió una URL de pago válida.');
       }
     } catch (err) {
       setError(err.message);
@@ -31,25 +31,23 @@ function Checkout() {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Checkout / Pago</h1>
-      <p>El backend valida el carrito y crea la orden. Luego inicias el pago en Transbank.</p>
+    <div className="contenedor" style={{ maxWidth: '600px' }}>
+      <h1 style={{ marginBottom: '20px' }}>Checkout / Pago</h1>
+
+      <div className="tarjeta" style={{ marginBottom: '20px' }}>
+        <p className="texto-secundario">
+          El backend valida el carrito y crea la orden. Luego inicias el pago en Transbank.
+        </p>
+      </div>
 
       {error && (
-        <div style={{ padding: '10px', backgroundColor: '#fee', border: '1px solid #c33', margin: '10px 0' }}>
-          <strong>Error:</strong> {error}
-        </div>
+        <div className="mensaje-error">{error}</div>
       )}
 
       <button
         onClick={handlePagar}
         disabled={cargando}
-        style={{
-          marginTop: '20px',
-          padding: '10px 20px',
-          cursor: cargando ? 'not-allowed' : 'pointer',
-          opacity: cargando ? 0.6 : 1,
-        }}
+        className="boton boton-primario"
       >
         {cargando ? 'Procesando...' : 'Pagar con Webpay (Sandbox)'}
       </button>

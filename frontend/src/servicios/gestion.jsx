@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL_GESTION || 'http://localhost:8001/api/usuarios/';
+const API_URL = import.meta.env.VITE_API_URL_GESTION || '/api/gestion/';
 
 const api = axios.create({
   baseURL: API_URL,
