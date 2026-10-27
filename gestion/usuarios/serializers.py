@@ -121,3 +121,45 @@ class UsuarioSerializer(serializers.ModelSerializer):
         instance.save(update_fields=['username'])
 
         return instance
+
+class CrearUsuarioAdminSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(min_length=1, allow_blank=False)
+    last_name = serializers.CharField(min_length=1, allow_blank=False)
+    email = serializers.EmailField()
+    rol = serializers.ChoiceField(choices=Usuario.Rol.choices)
+
+    class Meta:
+        model = Usuario
+        fields = ["first_name", "last_name", "email", "rol"]
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if Usuario.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("Ya existe un usuario con ese correo.")
+        return email
+
+    def create(self, validated_data):
+        email = validated_data["email"]
+        usuario = Usuario(
+            username=email,
+            estado=Usuario.Estado.PENDIENTE,
+            is_active=False,
+            **validated_data,
+        )
+        usuario.set_unusable_password()
+        usuario.save()
+        return usuario
+
+
+class EstablecerPasswordSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirmar_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs["confirmar_password"]:
+            raise serializers.ValidationError(
+                {"confirmar_password": "Las contraseñas no coinciden."}
+            )
+        return attrs
+

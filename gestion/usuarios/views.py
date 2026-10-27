@@ -20,6 +20,8 @@ from .serializers import (
     LoginSerializer,
     RegistroUsuarioSerializer,
     UsuarioSerializer,
+    CrearUsuarioAdminSerializer,
+    EstablecerPasswordSerializer,
 )
 
 class RegistroUsuarioView(generics.CreateAPIView):
@@ -277,4 +279,122 @@ class VerificarTokenView(APIView):
             }
         })
 
+
+class CrearUsuarioAdminView(generics.GenericAPIView):
+    serializer_class = CrearUsuarioAdminSerializer
+    permission_classes = [EsAdministrador]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            usuario = serializer.save()
+
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+            TokenActivacion.objects.create(
+                usuario=usuario,
+                token_hash=token_hash,
+            )
+
+            send_mail(
+                "Configura tu cuenta",
+                (
+                    "Se ha creado una cuenta para ti.\n\n"
+                    "Para establecer tu contraseña, utiliza este token:\n"
+                    f"{token}\n\n"
+                    "Envía el token y tu nueva contraseña al endpoint:\n"
+                    f"{request.build_absolute_uri(reverse('establecer-password'))}\n\n"
+                    "El token caduca en 24 horas y solo puede utilizarse una vez."
+                ),
+                settings.DEFAULT_FROM_EMAIL,
+                [usuario.email],
+                fail_silently=False,
+            )
+
+        return Response(
+            {
+                "mensaje": "Usuario creado. Se ha enviado el token de configuración.",
+                "id": usuario.pk,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class EstablecerPasswordView(generics.GenericAPIView):
+    serializer_class = EstablecerPasswordSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        datos = serializer.validated_data
+        token_hash = hashlib.sha256(datos["token"].encode()).hexdigest()
+
+        with transaction.atomic():
+            try:
+                activacion = TokenActivacion.objects.select_for_update().get(
+                    token_hash=token_hash
+                )
+            except TokenActivacion.DoesNotExist:
+                return Response(
+                    {"error": "Token inválido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if activacion.usado:
+                return Response(
+                    {"error": "El token ya se utilizó."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if timezone.now() > activacion.creado + timedelta(hours=24):
+                return Response(
+                    {"error": "El token ha caducado."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            usuario = Usuario.objects.select_for_update().get(
+                pk=activacion.usuario_id
+            )
+
+            if usuario.estado != Usuario.Estado.PENDIENTE:
+                return Response(
+                    {"error": "La cuenta no está pendiente."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if usuario.has_usable_password():
+                return Response(
+                    {"error": "La cuenta ya tiene una contraseña."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError
+
+            try:
+                validate_password(datos["password"], user=usuario)
+            except ValidationError as error:
+                return Response(
+                    {"password": error.messages},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            usuario.set_password(datos["password"])
+            usuario.estado = Usuario.Estado.ACTIVO
+            usuario.is_active = True
+            usuario.save(update_fields=["password", "estado", "is_active"])
+
+            activacion.usado = True
+            activacion.save(update_fields=["usado"])
+
+        return Response(
+            {"mensaje": "Contraseña configurada y cuenta activada."},
+            status=status.HTTP_200_OK,
+        )
 

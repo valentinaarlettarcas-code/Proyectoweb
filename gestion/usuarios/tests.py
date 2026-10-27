@@ -592,3 +592,157 @@ class ActivacionRF11Tests(APITestCase):
             Usuario.Estado.PENDIENTE
         )
         self.assertFalse(self.usuario.is_active)
+
+
+from django.core import mail
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from .models import Usuario, TokenActivacion
+
+
+class CreacionAdminRF11Tests(APITestCase):
+
+    def setUp(self):
+        self.admin = Usuario.objects.create_superuser(
+            username="admin_rf11",
+            email="admin_rf11@example.com",
+            password="ClaveAdmin123!Segura",
+            rol=Usuario.Rol.ADMIN,
+            estado=Usuario.Estado.ACTIVO,
+        )
+
+    def test_admin_crea_usuario_pendiente(self):
+        self.client.force_authenticate(user=self.admin)
+
+        respuesta = self.client.post(
+            reverse("crear-usuario-admin"),
+            {
+                "first_name": "Maria",
+                "last_name": "Perez",
+                "email": "maria@example.com",
+                "rol": Usuario.Rol.CLIENTE,
+            },
+            format="json",
+        )
+
+        self.assertEqual(respuesta.status_code, 201)
+        usuario = Usuario.objects.get(email="maria@example.com")
+        self.assertEqual(usuario.estado, Usuario.Estado.PENDIENTE)
+        self.assertFalse(usuario.is_active)
+        self.assertFalse(usuario.has_usable_password())
+        self.assertTrue(TokenActivacion.objects.filter(usuario=usuario).exists())
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_cliente_no_puede_crear_usuarios(self):
+        cliente = Usuario.objects.create_user(
+            username="cliente_rf11",
+            email="cliente_rf11@example.com",
+            password="ClaveCliente123!Segura",
+            rol=Usuario.Rol.CLIENTE,
+            estado=Usuario.Estado.ACTIVO,
+        )
+        self.client.force_authenticate(user=cliente)
+
+        respuesta = self.client.post(
+            reverse("crear-usuario-admin"),
+            {
+                "first_name": "Maria",
+                "last_name": "Perez",
+                "email": "maria@example.com",
+                "rol": Usuario.Rol.CLIENTE,
+            },
+            format="json",
+        )
+
+        self.assertEqual(respuesta.status_code, 403)
+
+    def test_token_invalido_no_establece_password(self):
+        respuesta = self.client.post(
+            reverse("establecer-password"),
+            {
+                "token": "token-invalido",
+                "password": "ClaveNueva123!Segura",
+                "confirmar_password": "ClaveNueva123!Segura",
+            },
+            format="json",
+        )
+        self.assertEqual(respuesta.status_code, 400)
+
+
+    def crear_usuario_pendiente(self):
+        self.client.force_authenticate(user=self.admin)
+        self.client.post(
+            reverse("crear-usuario-admin"),
+            {
+                "first_name": "Maria",
+                "last_name": "Perez",
+                "email": "maria@example.com",
+                "rol": Usuario.Rol.CLIENTE,
+            },
+            format="json",
+        )
+        self.client.force_authenticate(user=None)
+
+        usuario = Usuario.objects.get(email="maria@example.com")
+        token = mail.outbox[-1].body.split(
+            "utiliza este token:\n"
+        )[1].split("\n")[0]
+        return usuario, token
+
+    def test_establecer_password_activa_cuenta(self):
+        usuario, token = self.crear_usuario_pendiente()
+
+        respuesta = self.client.post(
+            reverse("establecer-password"),
+            {
+                "token": token,
+                "password": "ClaveNueva123!Segura",
+                "confirmar_password": "ClaveNueva123!Segura",
+            },
+            format="json",
+        )
+
+        usuario.refresh_from_db()
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(usuario.is_active)
+        self.assertEqual(usuario.estado, Usuario.Estado.ACTIVO)
+        self.assertTrue(usuario.check_password("ClaveNueva123!Segura"))
+
+    def test_token_no_puede_reutilizarse(self):
+        usuario, token = self.crear_usuario_pendiente()
+        datos = {
+            "token": token,
+            "password": "ClaveNueva123!Segura",
+            "confirmar_password": "ClaveNueva123!Segura",
+        }
+
+        primera = self.client.post(reverse("establecer-password"), datos, format="json")
+        segunda = self.client.post(reverse("establecer-password"), datos, format="json")
+
+        self.assertEqual(primera.status_code, 200)
+        self.assertEqual(segunda.status_code, 400)
+
+    def test_token_caducado_es_rechazado(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        usuario, token = self.crear_usuario_pendiente()
+        TokenActivacion.objects.filter(usuario=usuario).update(
+            creado=timezone.now() - timedelta(hours=25)
+        )
+
+        respuesta = self.client.post(
+            reverse("establecer-password"),
+            {
+                "token": token,
+                "password": "ClaveNueva123!Segura",
+                "confirmar_password": "ClaveNueva123!Segura",
+            },
+            format="json",
+        )
+
+        usuario.refresh_from_db()
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertFalse(usuario.is_active)
