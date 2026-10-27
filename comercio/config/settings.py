@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env", override=True)
+load_dotenv(BASE_DIR / ".env")
 
 def _bool(name, default=False):
     return os.environ.get(name, str(default)).lower() in {"1", "true", "yes", "on"}
@@ -15,7 +15,7 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").sp
 
 CORS_ALLOWED_ORIGINS = [
     o.strip() for o in os.environ.get(
-        "DJANGO_CORS_ORIGINS", "http://localhost:5173"
+        "DJANGO_CORS_ORIGINS", 'http://localhost:5173'
     ).split(",") if o.strip()
 ]
 
@@ -95,26 +95,22 @@ TBK_API_KEY = os.environ.get("TBK_API_KEY", "579B532A7440BB0C9079DED94D31EA1615B
 TBK_ENVIRONMENT = os.environ.get("TBK_ENVIRONMENT", "TEST")
 
 
-# Configuracion de integraciones
-def _crear_url_comercio(host, path=""):
-    return "http" + chr(58) + chr(47) * 2 + host + path
+# Configuración de integraciones
+from urllib.parse import urlunsplit as _urlunsplit
 
-GESTION_VERIFY_TOKEN_URL = _crear_url_comercio(
-    "127.0.0.1:8001", "/api/usuarios/verificar-token/"
-)
-CATALOGO_API_BASE_URL = _crear_url_comercio("127.0.0.1:8002")
-CORS_ALLOWED_ORIGINS = [_crear_url_comercio("localhost:5173")]
-TBK_RETURN_URL = _crear_url_comercio("localhost:5173", "/pago/retorno")
-TBK_ALLOWED_RETURN_URLS = [
-    _crear_url_comercio("localhost:5173", "/pago/retorno")
-]
-TBK_BACKEND_RETURN_URL = _crear_url_comercio(
-    "127.0.0.1:8000", "/api/payments/return/"
-)
+def _url_local(host, path=""):
+    return "http://" + host + path
+
+GESTION_VERIFY_TOKEN_URL = _url_local("127.0.0.1:8001", "/api/usuarios/verificar-token/")
+CATALOGO_API_BASE_URL = _url_local("127.0.0.1:8002")
+TBK_RETURN_URL = _url_local("localhost:5173", "/pago/retorno")
+TBK_BACKEND_RETURN_URL = _url_local("127.0.0.1:8000", "/api/payments/return/")
+TBK_ALLOWED_RETURN_URLS = [TBK_RETURN_URL]
+CORS_ALLOWED_ORIGINS = [_url_local("localhost:5173")]
 
 os.environ["GESTION_VERIFY_TOKEN_URL"] = GESTION_VERIFY_TOKEN_URL
 os.environ["CATALOGO_API_BASE_URL"] = CATALOGO_API_BASE_URL
-os.environ["DJANGO_CORS_ORIGINS"] = CORS_ALLOWED_ORIGINS[0]
 os.environ["TBK_RETURN_URL"] = TBK_RETURN_URL
-os.environ["TBK_ALLOWED_RETURN_URLS"] = TBK_ALLOWED_RETURN_URLS[0]
+os.environ["TBK_ALLOWED_RETURN_URLS"] = TBK_RETURN_URL
 os.environ["TBK_BACKEND_RETURN_URL"] = TBK_BACKEND_RETURN_URL
+os.environ["DJANGO_CORS_ORIGINS"] = CORS_ALLOWED_ORIGINS[0]
