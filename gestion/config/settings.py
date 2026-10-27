@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
 
     "usuarios",
+    "contenidos",
+    "contacto",
+    "temas",
 ]
 
 
