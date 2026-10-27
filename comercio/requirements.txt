@@ -7,4 +7,4 @@ transbank-sdk==6.1.0
 
 python-dotenv==1.2.4
 
-django-cors-headers==VERSION
+django-cors-headers==4.9.0
