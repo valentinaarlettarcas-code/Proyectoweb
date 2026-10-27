@@ -16,14 +16,12 @@ function Login() {
     setError(null);
     try {
       const data = await login(email, password);
-      // Redirigir segun rol
       if (data.usuario.rol === 'ADMIN') {
-        
         navigate('/admin');
-        } else {
-            const redirect = new URLSearchParams(window.location.search).get('redirect');
-            navigate(redirect || '/carrito');
-            }
+      } else {
+        const redirect = new URLSearchParams(window.location.search).get('redirect');
+        navigate(redirect || '/carrito');
+      }
     } catch (err) {
       setError(err.message);
       setCargando(false);
@@ -31,54 +29,45 @@ function Login() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
-      <h1>Iniciar sesion</h1>
+    <div className="contenedor" style={{ maxWidth: '400px' }}>
+      <h1 style={{ marginBottom: '20px' }}>Iniciar sesión</h1>
 
-      {error && (
-        <div style={{ padding: '10px', backgroundColor: '#fee', border: '1px solid #c33', margin: '10px 0' }}>
-          <strong>Error:</strong> {error}
-        </div>
-      )}
+      {error && <div className="mensaje-error">{error}</div>}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <label>
-          Correo:
+      <form onSubmit={handleSubmit} className="formulario">
+        <div className="campo">
+          <label htmlFor="email">Correo</label>
           <input
             type="email"
+            id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{ width: '100%', padding: '8px', marginTop: '4px' }}
           />
-        </label>
+        </div>
 
-        <label>
-          Contraseña:
+        <div className="campo">
+          <label htmlFor="password">Contraseña</label>
           <input
             type="password"
+            id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{ width: '100%', padding: '8px', marginTop: '4px' }}
           />
-        </label>
+        </div>
 
         <button
           type="submit"
           disabled={cargando}
-          style={{
-            padding: '10px',
-            marginTop: '10px',
-            cursor: cargando ? 'not-allowed' : 'pointer',
-            opacity: cargando ? 0.6 : 1,
-          }}
+          className="boton boton-primario"
         >
-          {cargando ? 'Procesando...' : 'Iniciar sesion'}
+          {cargando ? 'Procesando...' : 'Iniciar sesión'}
         </button>
       </form>
 
-      <p style={{ marginTop: '15px' }}>
-        ¿No tienes cuenta? <Link to="/registro">Registrate aqui</Link>
+      <p className="texto-secundario margin-top">
+        ¿No tienes cuenta? <Link to="/registro">Regístrate aquí</Link>
       </p>
     </div>
   );
