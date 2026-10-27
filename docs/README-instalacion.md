@@ -1,9 +1,9 @@
 # Guía de instalación - Proyecto Setupverse
 
 Instrucciones para levantar todo el proyecto desde cero en un nuevo computador.
+Esto es solo para entorno VsCode+WSL Ubuntu, en caso de ocupar windows mientras tengan pyython 3.12 o superior, postgresql y nodejs + npm deberia funcionar si se cona el repositorio, descarga lo de gestion y se actualizan los archivos como  se indica. Tener en cuenta que se necesitan 4 terminales (ver paso 13).
 
 ## 1. Requisitos previos
-
 ### Software a instalar
 
 - **WSL2 con Ubuntu** (en Windows) o Ubuntu nativo
