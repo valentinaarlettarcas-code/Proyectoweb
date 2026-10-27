@@ -92,6 +92,10 @@ Requisitos: Python con Django 6.1.2 y DRF 3.18.3 (ver `requirements.txt`) y Post
         python manage.py test
         python manage.py runserver
 
+## Primer administrador
+
+El registro público solo crea clientes. El procedimiento seguro para crear la primera cuenta administradora está en [docs/PRIMER_ADMINISTRADOR.md](../docs/PRIMER_ADMINISTRADOR.md).
+
 ## Variables de entorno
 
 La plantilla está en `.env.example`. Django no carga ese archivo por sí solo: las variables deben definirse en la terminal o en la herramienta de despliegue. Nunca se suben valores reales al repositorio.
