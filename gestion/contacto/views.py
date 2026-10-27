@@ -30,7 +30,7 @@ class EnviarMensajeView(generics.GenericAPIView):
 
 
 class ListaMensajesView(generics.ListAPIView):
-    queryset = MensajeContacto.objects.all().order_by('-fecha_recepcion')
+    queryset = MensajeContacto.objects.all().order_by('-fecha_recepcion', '-id')
     serializer_class = MensajeContactoSerializer
     permission_classes = [EsAdministrador]
 
