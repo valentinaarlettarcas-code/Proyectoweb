@@ -8,7 +8,7 @@ function Checkout() {
   const carritoPrueba = [
     { producto_id: 1, quantity: 1 },
   ];
-  const checkoutId = 'checkout-prueba-001';
+  const checkoutId = `checkout-${Date.now()}`;
 
   const handlePagar = async () => {
     if (cargando) return;
@@ -18,10 +18,11 @@ function Checkout() {
       const orden = await crearOrden(carritoPrueba, checkoutId);
       const returnUrl = `${window.location.origin}/pago/retorno`;
       const intento = await iniciarPago(orden.id, returnUrl);
-      if (intento.checkout_url) {
-        window.location.href = intento.checkout_url;
+      if (intento.checkout_url && intento.token_ws) {
+        const urlConToken = `${intento.checkout_url}?token_ws=${intento.token_ws}`;
+        window.location.href = urlConToken;
       } else {
-        throw new Error('El backend no devolvio una URL de pago.');
+          throw new Error('El backend no devolvió una URL de pago válida.');
       }
     } catch (err) {
       setError(err.message);
