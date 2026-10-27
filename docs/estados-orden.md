@@ -93,6 +93,8 @@ stateDiagram-v2
     REVISION_REQUERIDA --> CONFIRMADA : Conciliación exitosa
     REVISION_REQUERIDA --> CANCELADA : Conciliación fallida
     
+    VENCIDA --> [*]
     RECHAZADA --> [*]
     CONFIRMADA --> [*]
     CANCELADA --> [*]
+```
