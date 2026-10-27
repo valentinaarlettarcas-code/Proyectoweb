@@ -1,6 +1,7 @@
 
 import os
 from unittest.mock import patch
+from .pruebas_gestion import configurar_autenticacion_de_prueba, rechazar_token_de_prueba
 
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
@@ -13,12 +14,7 @@ class EditarProductoAdminHTTPTests(SimpleTestCase):
         self.ruta = "/api/admin/productos/5/"
         self.token = "token-pruebas-catalogo"
 
-        entorno = patch.dict(
-            os.environ,
-            {"CATALOGO_ADMIN_TOKEN": self.token},
-        )
-        entorno.start()
-        self.addCleanup(entorno.stop)
+        self.gestion_http = configurar_autenticacion_de_prueba(self)
 
     def editar(self, datos, token=None):
         token_usado = self.token if token is None else token
@@ -27,7 +23,7 @@ class EditarProductoAdminHTTPTests(SimpleTestCase):
             self.ruta,
             datos,
             format="json",
-            HTTP_AUTHORIZATION=f"Bearer {token_usado}",
+            HTTP_AUTHORIZATION=f"Token {token_usado}",
         )
 
     @patch("productos.admin_views.obtener_bd")
@@ -107,6 +103,7 @@ class EditarProductoAdminHTTPTests(SimpleTestCase):
 
     @patch("productos.admin_views.obtener_bd")
     def test_token_incorrecto(self, mock_bd):
+        rechazar_token_de_prueba(self.gestion_http)
         respuesta = self.editar(
             {"nombre": "Producto nuevo"},
             token="token-incorrecto",

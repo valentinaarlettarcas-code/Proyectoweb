@@ -3,6 +3,7 @@
 import json
 import os
 from unittest.mock import patch
+from .pruebas_gestion import configurar_autenticacion_de_prueba, rechazar_token_de_prueba
 
 from django.test import SimpleTestCase
 from pymongo.errors import DuplicateKeyError
@@ -10,9 +11,7 @@ from pymongo.errors import DuplicateKeyError
 
 class CrearProductoHTTPTests(SimpleTestCase):
     def setUp(self):
-        entorno = patch.dict(os.environ, {"CATALOGO_ADMIN_TOKEN": "token-admin-de-prueba"})
-        entorno.start()
-        self.addCleanup(entorno.stop)
+        self.gestion_http = configurar_autenticacion_de_prueba(self)
 
         base = patch("productos.admin_views.obtener_bd")
         self.bd = base.start()
@@ -32,7 +31,7 @@ class CrearProductoHTTPTests(SimpleTestCase):
     def enviar(self, datos=None, token="token-admin-de-prueba", autenticado=True):
         cabeceras = {}
         if autenticado:
-            cabeceras["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+            cabeceras["HTTP_AUTHORIZATION"] = f"Token {token}"
         return self.client.post(
             "/api/productos/",
             data=json.dumps(self.datos if datos is None else datos),
@@ -85,6 +84,7 @@ class CrearProductoHTTPTests(SimpleTestCase):
         self.bd.assert_not_called()
 
     def test_token_incorrecto(self):
+        rechazar_token_de_prueba(self.gestion_http)
         respuesta = self.enviar(token="token-equivocado")
         self.assertEqual(respuesta.status_code, 401)
         self.bd.assert_not_called()

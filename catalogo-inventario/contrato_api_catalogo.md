@@ -7,7 +7,7 @@ Servicio: Catálogo e Inventario
 Framework: Django REST Framework
 Base de datos: MongoDB
 Moneda: CLP
-URL local: http://127.0.0.1:8001
+URL local de Catálogo: configurable (ejemplo http://127.0.0.1:8000)
 
 Los endpoints descritos son contratos propuestos para
 su implementación e integración con Comercio.
@@ -138,7 +138,49 @@ Formato de error:
 - Los precios válidos siempre provienen del backend.
 - Las operaciones de reserva requieren autorización.
 - Consolidar y liberar son operaciones internas protegidas.
-- La autenticación se integrará con el servicio de Gestión.
+- Los endpoints administrativos validan el token de Gestión; las reservas mantienen Bearer interno de Comercio.
 - El resultado del navegador no confirma un pago.
 - No se devuelve éxito cuando el resultado es incierto.
 - Todas las operaciones deben respetar la idempotencia.
+
+
+## 7. Contrato de inventario físico y autenticación actualizada (H2)
+
+El documento de MongoDB almacena `stock.disponible` y `stock.reservado`.
+**Stock físico = stock.disponible + stock.reservado**.
+
+Ejemplo: disponible=15, reservado=5, físico=20.
+
+- **Reservar**: disminuye disponible y aumenta reservado por igual; el físico no cambia.
+- **Consolidar**: disminuye reservado; el físico disminuye por las unidades vendidas.
+- **Liberar**: disminuye reservado y aumenta disponible; el físico no cambia.
+- **RF19 (ajustar)**: fija un nuevo stock físico, conservando el reservado:
+  `disponible_nuevo = stock_fisico_nuevo - stock.reservado`. Rechaza valores inferiores al reservado.
+
+### Seguridad de las APIs
+
+- **Administrador (persona):**
+  `POST /api/productos/`, `GET /api/admin/productos/`,
+  `PATCH /api/admin/productos/{id}/`,
+  `PATCH /api/admin/productos/{id}/desactivar/`,
+  `POST /api/admin/productos/{id}/ajustar-stock/`.
+  Todas usan `Authorization: Token <token_de_Gestion>`; Catálogo consulta
+  `GET /api/usuarios/verificar-token/` de Gestión, valida `ADMIN` y `ACTIVO`.
+  La URL se configura mediante `GESTION_VERIFY_TOKEN_URL`.
+- **Entre microservicios (Comercio):**
+  `POST /api/reservas/`, `POST /api/reservas/{id}/consolidar/`
+  y `POST /api/reservas/{id}/liberar/` usan
+  `Authorization: Bearer <CATALOGO_INTERNAL_TOKEN>`, sin utilizar el token personal.
+- Crear reserva requiere `reserva_id`, `orden_id` y `productos`
+  (`producto_id`, `cantidad`); consolidar no requiere JSON obligatorio.
+  Liberar requiere `motivo`: `PAGO_RECHAZADO`, `PAGO_CANCELADO`
+  o `VENCIMIENTO_CONCILIADO`.
+- El token de Gestión nunca debe mostrarse en el frontend ni registrarse en logs.
+
+### Configuración al clonar
+
+Usar `servicio_catalogo/.env.example` como referencia y configurar variables
+reales en el entorno local o contenedor. **Django no carga `.env` automáticamente**.
+El servidor de Gestión debe tener una URL accesible desde donde corra Catálogo.
+Las reservas y RF19 requieren MongoDB compatible con transacciones (replica set).
+El contrato HTTP de productos/reservas permanece compatible con Comercio.
