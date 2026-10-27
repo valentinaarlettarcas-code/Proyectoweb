@@ -83,11 +83,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "gestion_db",
-        "USER": "postgres",
+        "NAME": os.environ.get("DB_NAME", "gestion_db"),
+        "USER": os.environ.get("DB_USER", "postgres"),
         "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": "localhost",
-        "PORT": "5432",
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 
@@ -139,7 +139,7 @@ REST_FRAMEWORK = {
 # Los correos aparecen en la terminal.
 MAILERS = {
     "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
+        "BACKEND": os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"),
     }
 }
 
