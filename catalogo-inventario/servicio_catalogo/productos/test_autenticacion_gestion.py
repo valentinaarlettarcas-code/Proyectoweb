@@ -15,7 +15,7 @@ class AutenticacionGestionRF19Tests(SimpleTestCase):
         self.token = "a" * 40
         self.url = "http://127.0.0.1:8001/api/usuarios/verificar-token/"
         entorno = patch.dict(
-            os.environ, {"GESTION_VERIFICAR_TOKEN_URL": self.url}
+            os.environ, {"GESTION_VERIFY_TOKEN_URL": self.url}
         )
         entorno.start()
         self.addCleanup(entorno.stop)
@@ -126,7 +126,7 @@ class AutenticacionGestionRF19Tests(SimpleTestCase):
 
     @patch("productos.stock_admin_views.obtener_bd")
     def test_sin_url_configurada_falla_cerrado(self, mock_bd):
-        with patch.dict(os.environ, {"GESTION_VERIFICAR_TOKEN_URL": ""}):
+        with patch.dict(os.environ, {"GESTION_VERIFY_TOKEN_URL": ""}):
             respuesta = self.solicitar()
         self.assertEqual(respuesta.status_code, 503)
         self.http.assert_not_called()

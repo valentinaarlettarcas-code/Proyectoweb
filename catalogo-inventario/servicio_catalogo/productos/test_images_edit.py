@@ -1,6 +1,7 @@
 
 import os
 from unittest.mock import patch
+from .pruebas_gestion import configurar_autenticacion_de_prueba, rechazar_token_de_prueba
 
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
@@ -13,12 +14,7 @@ class EditarImagenesProductoTests(SimpleTestCase):
         self.ruta = "/api/admin/productos/5/"
         self.token = "token-pruebas-catalogo"
 
-        entorno = patch.dict(
-            os.environ,
-            {"CATALOGO_ADMIN_TOKEN": self.token},
-        )
-        entorno.start()
-        self.addCleanup(entorno.stop)
+        self.gestion_http = configurar_autenticacion_de_prueba(self)
 
         self.imagenes = [
             "https://ejemplo.cl/frontal.jpg",
@@ -39,7 +35,7 @@ class EditarImagenesProductoTests(SimpleTestCase):
             self.ruta,
             datos,
             format="json",
-            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+            HTTP_AUTHORIZATION=f"Token {self.token}",
         )
 
     @patch("productos.admin_views.obtener_bd")

@@ -1,4 +1,4 @@
-"""Autenticacion de RF19 contra la API oficial de Gestion.
+"""Autenticacion de endpoints administrativos contra la API oficial de Gestion.
 
 El token enviado por el cliente se comprueba en Gestion. Nunca se acepta
 X-Admin-Id como fuente de identidad, ni se confia en un rol del request.
@@ -58,7 +58,7 @@ class AutenticacionGestion(BaseAuthentication):
 
         esquema, separador, valor = encabezado.partition(" ")
         if esquema.lower() != "token":
-            # RF19 ya no acepta Bearer ni su token administrativo temporal.
+            # Los endpoints administrativos no aceptan Bearer interno.
             return None
 
         token = valor.strip()
@@ -70,7 +70,7 @@ class AutenticacionGestion(BaseAuthentication):
         ):
             raise AuthenticationFailed("Formato de token invalido")
 
-        url = os.environ.get("GESTION_VERIFICAR_TOKEN_URL", "").strip()
+        url = os.environ.get("GESTION_VERIFY_TOKEN_URL", "").strip()
         try:
             partes = urlsplit(url)
         except ValueError:

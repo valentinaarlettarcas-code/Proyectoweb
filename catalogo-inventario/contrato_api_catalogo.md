@@ -138,7 +138,63 @@ Formato de error:
 - Los precios válidos siempre provienen del backend.
 - Las operaciones de reserva requieren autorización.
 - Consolidar y liberar son operaciones internas protegidas.
-- La autenticación se integrará con el servicio de Gestión.
+- Los endpoints administrativos validan el token de Gestión; las reservas mantienen Bearer interno de Comercio.
 - El resultado del navegador no confirma un pago.
 - No se devuelve éxito cuando el resultado es incierto.
 - Todas las operaciones deben respetar la idempotencia.
+
+## 7. Inventario físico y seguridad (H2)
+
+### Cálculo del stock físico
+
+MongoDB almacena `stock.disponible` y `stock.reservado`.
+
+**Stock físico = stock.disponible + stock.reservado**
+
+Ejemplo: disponible = 15, reservado = 5, físico = 20.
+
+- Reservar: disminuye disponible y aumenta reservado. El stock físico no cambia.
+- Consolidar: disminuye reservado. El stock físico disminuye por las unidades vendidas.
+- Liberar: disminuye reservado y aumenta disponible. El stock físico no cambia.
+- Ajustar stock (RF19): establece un nuevo stock físico conservando las unidades reservadas.
+
+Fórmula RF19:
+
+`disponible_nuevo = stock_fisico_nuevo - stock.reservado`
+
+Se rechazan ajustes donde el stock físico sea inferior al reservado.
+
+### Autenticación administrativa
+
+Crear, listar, editar, desactivar y ajustar stock utilizan:
+
+`Authorization: Token <token_de_Gestion>`
+
+Catálogo verifica mediante Gestión que la persona tenga:
+
+- Rol ADMIN.
+- Estado ACTIVO.
+
+La dirección de Gestión se configura con `GESTION_VERIFY_TOKEN_URL`.
+
+### Autenticación interna de Comercio
+
+Reservar, consolidar y liberar utilizan:
+
+`Authorization: Bearer <CATALOGO_INTERNAL_TOKEN>`
+
+Motivos permitidos de liberación:
+
+- PAGO_RECHAZADO
+- PAGO_CANCELADO
+- VENCIMIENTO_CONCILIADO
+
+Esta autenticación entre servicios es independiente de los tokens personales de Gestión.
+
+### Configuración del servicio
+
+`servicio_catalogo/.env.example` documenta las variables necesarias.
+
+El `config/settings.py` de main carga el archivo `.env` cuando existe.
+
+Las operaciones que utilizan transacciones requieren MongoDB configurado para admitirlas, por ejemplo mediante un replica set.

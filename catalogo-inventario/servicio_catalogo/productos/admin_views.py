@@ -9,84 +9,26 @@ Funcionalidades:
 - Editar imagenes y textos alternativos.
 - Desactivar productos sin eliminarlos.
 
-La autenticacion mediante token administrativo es provisional
-y debe integrarse posteriormente con el servicio de Gestion.
+La autenticacion administrativa se valida con el servicio de Gestion.
 """
-
-import os
-from hmac import compare_digest
 
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from rest_framework import serializers, status
-from rest_framework.authentication import BaseAuthentication
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
     permission_classes,
 )
-from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .admin_serializers import (
     CrearProductoSerializer,
     EditarProductoSerializer,
 )
+from .autenticacion_gestion import AutenticacionGestion, EsAdminGestion
 from .mongo import obtener_bd
-
-
-# ============================================================
-# AUTENTICACION ADMINISTRATIVA PROVISIONAL
-# ============================================================
-
-class UsuarioAdministrativoInterno:
-    """
-    Representa temporalmente a un administrador autenticado.
-
-    Se reemplazara al integrar la autenticacion de Gestion.
-    """
-
-    is_authenticated = True
-
-
-class AutenticacionAdministrativaTemporal(BaseAuthentication):
-    """
-    Comprueba el token administrativo configurado en el entorno.
-
-    Encabezado esperado:
-    Authorization: Bearer TOKEN
-    """
-
-    def authenticate(self, request):
-        encabezado = request.headers.get("Authorization", "")
-
-        esquema, separador, token = encabezado.partition(" ")
-
-        if (
-            esquema.lower() != "bearer"
-            or not separador
-            or not token
-        ):
-            return None
-
-        esperado = os.environ.get("CATALOGO_ADMIN_TOKEN")
-
-        if not esperado:
-            raise AuthenticationFailed(
-                "Autenticacion administrativa no configurada"
-            )
-
-        if not compare_digest(token, esperado):
-            raise AuthenticationFailed(
-                "Credenciales administrativas invalidas"
-            )
-
-        return UsuarioAdministrativoInterno(), None
-
-    def authenticate_header(self, request):
-        return "Bearer"
 
 
 # ============================================================
@@ -135,8 +77,8 @@ def respuesta_producto_no_encontrado():
 # ============================================================
 
 @api_view(["POST"])
-@authentication_classes([AutenticacionAdministrativaTemporal])
-@permission_classes([IsAuthenticated])
+@authentication_classes([AutenticacionGestion])
+@permission_classes([EsAdminGestion])
 def crear_producto(request):
     """
     Crea un producto nuevo en MongoDB.
@@ -257,8 +199,8 @@ def crear_producto(request):
 # ============================================================
 
 @api_view(["GET"])
-@authentication_classes([AutenticacionAdministrativaTemporal])
-@permission_classes([IsAuthenticated])
+@authentication_classes([AutenticacionGestion])
+@permission_classes([EsAdminGestion])
 def listar_productos_admin(request):
     """
     Lista todos los productos.
@@ -297,8 +239,8 @@ def listar_productos_admin(request):
 # ============================================================
 
 @api_view(["PATCH"])
-@authentication_classes([AutenticacionAdministrativaTemporal])
-@permission_classes([IsAuthenticated])
+@authentication_classes([AutenticacionGestion])
+@permission_classes([EsAdminGestion])
 def editar_producto_admin(request, producto_id):
     """
     Permite actualizar los datos comerciales de un producto.
@@ -428,8 +370,8 @@ def editar_producto_admin(request, producto_id):
 # ============================================================
 
 @api_view(["PATCH"])
-@authentication_classes([AutenticacionAdministrativaTemporal])
-@permission_classes([IsAuthenticated])
+@authentication_classes([AutenticacionGestion])
+@permission_classes([EsAdminGestion])
 def desactivar_producto_admin(request, producto_id):
     """
     Desactiva un producto sin eliminar su documento de MongoDB.
