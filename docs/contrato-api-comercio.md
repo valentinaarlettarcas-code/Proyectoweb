@@ -38,6 +38,8 @@ El cliente nunca envía precios, nombres, moneda ni totales. Comercio consulta c
 
 Repetición segura: si el mismo cliente envía otra vez el mismo `checkout_id`, se devuelve la orden ya creada con código 200, sin crear otra. Dos clientes distintos pueden usar el mismo `checkout_id`.
 
+La orden repetida se devuelve tal como está guardada, con su estado actual. Si el primer intento terminó en `RECHAZADA` o `REVISION_REQUERIDA`, repetir el mismo `checkout_id` devuelve esa orden y no reintenta la reserva. Para intentarlo de nuevo, el cliente debe enviar un `checkout_id` nuevo. El cliente debe revisar siempre el campo `status`, no solo el código HTTP.
+
 Respuesta exitosa (201 al crear, 200 al repetir):
 
     {
@@ -60,15 +62,17 @@ Respuesta exitosa (201 al crear, 200 al repetir):
       ]
     }
 
-Los datos históricos de cada línea (nombre, precio y moneda) quedan guardados en la orden y no cambian aunque el producto se modifique después. El estado inicial es siempre `PENDIENTE_PAGO`; los demás estados están en `docs/estados-orden.md`.
+Los datos históricos de cada línea (nombre, precio y moneda) quedan guardados en la orden y no cambian aunque el producto se modifique después. La orden se crea en `PENDIENTE_PAGO`. Si la reserva de stock en Catálogo falla, la orden queda guardada como `RECHAZADA` (Catálogo respondió 400 o 409) o `REVISION_REQUERIDA` (cualquier otro fallo). Los demás estados están en `docs/estados-orden.md`.
 
 Errores:
 
 | Código | Cuándo |
 |---|---|
-| 400 | Datos inválidos. El cuerpo indica el campo afectado (`checkout_id` o `items`) |
+| 400 | Datos inválidos; producto inexistente, inactivo, sin stock o con precio o moneda inválidos; Catálogo no responde en la consulta previa; error de integridad al procesar la orden. No se crea orden |
+| 400 o 409 | Catálogo rechaza la reserva (por ejemplo, stock insuficiente). La orden queda `RECHAZADA` |
 | 403 | Token ausente o inválido, usuario que no es `CLIENTE` o cuenta que no está `ACTIVO` |
-| 503 | El servicio de Gestión no está disponible |
+| 502 | Catálogo devolvió una respuesta inválida al reservar. La orden queda `REVISION_REQUERIDA` |
+| 503 | Gestión no disponible, o Catálogo no disponible al reservar. En el segundo caso la orden queda `REVISION_REQUERIDA` |
 
 ## Consultar una orden
 
@@ -104,12 +108,15 @@ Webpay Plus no usa webhook: el cliente vuelve a `return_url` con un `token_ws` y
 
 ## Estado de implementación
 
+Hecho:
+
+- Reserva de stock en Catálogo al crear la orden, con identificador idempotente `orden-<id>` (autenticada con `CATALOGO_INTERNAL_TOKEN`).
+
 Pendiente (Sprint 6, HU-12 a HU-14):
 
-- Reservar stock en Catálogo al crear la orden (`POST /api/reservas/`, autenticado con `CATALOGO_INTERNAL_TOKEN`).
 - Confirmar la transacción al volver de Webpay, verificando autorización, importe y moneda, sin procesar dos veces el mismo resultado.
 - Consolidar el stock, confirmar la orden y liberar la reserva si el pago falla.
-- Hoy, si Catálogo no está disponible, la creación de la orden responde 400; debe responder 503.
+- La consulta previa de productos responde 400 si Catálogo no está disponible, mientras que la reserva responde 503. Unificar el criterio.
 - Unificar los códigos de autenticación de los dos endpoints (comprobado con el servicio en ejecución: hoy 403 en órdenes y 401 en pagos).
 
 ## Configuración
