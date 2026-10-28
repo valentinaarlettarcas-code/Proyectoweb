@@ -106,5 +106,8 @@ TBK_ALLOWED_RETURN_URLS = [
         "TBK_ALLOWED_RETURN_URLS", TBK_RETURN_URL
     ).split(",") if u.strip()
 ]
+TBK_BACKEND_RETURN_URL = os.environ.get(
+    "TBK_BACKEND_RETURN_URL", "http://127.0.0.1:8000/api/payments/return/"
+)
 
 TEST_RUNNER = "pagos.tests.MensajeEspanolRunner"

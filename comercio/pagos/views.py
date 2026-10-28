@@ -1,4 +1,6 @@
 import logging
+from decimal import Decimal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 from django.conf import settings
@@ -15,6 +17,7 @@ from transbank.error.transbank_error import TransbankError
 from transbank.webpay.webpay_plus.transaction import Transaction
 
 from comercio.models import Order
+from comercio.catalogo_client import consolidar, liberar
 from .models import IntentoPago
 from .serializers import CrearIntentoPagoSerializer, IntentoPagoSerializer
 
@@ -23,8 +26,9 @@ logger = logging.getLogger(__name__)
 
 def _verificar_cliente(request):
     """Valida el token con Gestion y exige rol CLIENTE.
-    TODO: cuando Jani publique su verificador, reemplazar 
-    Retorna (cliente_id, error_response).
+
+    Retorna (cliente_id, error_response). Si error_response no es None,
+    la view debe devolverlo directamente.
     """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header or not auth_header.lower().startswith("token "):
@@ -40,13 +44,14 @@ def _verificar_cliente(request):
             headers={"Authorization": auth_header, "Accept": "application/json"},
             timeout=5,
         )
-    except requests.RequestException:
+    except requests.RequestException as exc:
         logger.warning("Servicio de Gestion no disponible al verificar token")
         return None, Response(
-            {"error": str(exc)},
+            {"error": "Servicio de Gestion no disponible"},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
-    except Exception as exc:
+
+    if resp.status_code != 200:
         return None, Response(
             {"error": "Token invalido o cuenta no activa"},
             status=status.HTTP_401_UNAUTHORIZED,
@@ -90,7 +95,6 @@ def _verificar_cliente(request):
 def _buy_order(order, intentos_previos):
     """Genera buy_order unico. Incluye contador para evitar colisiones."""
     base = f"ORD{str(order.id).rjust(8, '0')}"
-    # Si ya existe, agregar sufijo numerico
     sufijo = intentos_previos
     return f"{base}{sufijo:02d}"[:26]
 
@@ -109,7 +113,6 @@ class CrearIntentoPagoView(APIView):
 
         # RF-10: cliente solo paga sus propias ordenes.
         if order.cliente_id != cliente_id:
-            # 404 para no revelar existencia de la orden (RF-10, seguridad)
             return Response(
                 {"error": "Orden no encontrada"},
                 status=status.HTTP_404_NOT_FOUND,
@@ -177,7 +180,6 @@ class CrearIntentoPagoView(APIView):
                 "message": "No se pudo crear el intento de pago.",
             }}, status=status.HTTP_502_BAD_GATEWAY)
         except Exception:
-            # logea y no expone detalles al cliente.
             logger.exception(
                 "Error inesperado al crear intento para orden %s", order.id
             )
@@ -200,12 +202,12 @@ class CrearIntentoPagoView(APIView):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def webhook_pago(request):
-    #Webhook declarativo. Webpay Plus no lo usa, queda para H3.
+    """Webhook declarativo. Webpay Plus no lo usa, queda para H3."""
     return Response({"recibido": True}, status=status.HTTP_200_OK)
 
 
-# ------------------------- DESARROLLO --------------------------------
-# RETORNO_WEBPAY_COMERCIO
+# ------------------------- RETORNO WEBPAY -------------------------------
+
 def _url_webpay_return():
     configured = getattr(settings, "TBK_BACKEND_RETURN_URL", "")
     if configured:
@@ -223,7 +225,7 @@ def _redirigir_resultado_pago(intento, estado):
     destination = intento.return_url
     if destination not in allowed:
         return Response(
-            {"error": "La URL de retorno guardada no está permitida."},
+            {"error": "La URL de retorno guardada no esta permitida."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -247,6 +249,12 @@ def _marcar_revision(intento):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def retorno_webpay(request):
+    """POST /api/payments/return/
+
+    Recibe el retorno de Webpay con token_ws (exito) o TBK_ORDEN_COMPRA
+    + TBK_ID_SESION (cancelacion). Verifica, consolida o libera segun
+    corresponda y redirige al frontend con el estado final.
+    """
     token_ws = request.data.get("token_ws")
 
     # Webpay puede volver sin token_ws cuando el usuario cancela.
@@ -305,7 +313,7 @@ def retorno_webpay(request):
         _marcar_revision(intento)
         return _redirigir_resultado_pago(intento, "REVISION_REQUERIDA")
 
-    # Verificar orden, sesión e importe antes de aplicar el resultado.
+    # Verificar orden, sesion e importe antes de aplicar el resultado.
     try:
         valido = (
             str(resultado["buy_order"]) == intento.buy_order
@@ -349,49 +357,3 @@ def retorno_webpay(request):
     intento.order.status = "RECHAZADA"
     intento.order.save(update_fields=["status", "updated_at"])
     return _redirigir_resultado_pago(intento, intento.order.status)
-
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def dev_crear_orden_prueba(request):
-    #Endpoint de desarrollo. Crea una Order sin Gestion ni Catalogo
-    if not settings.DEBUG:
-        return Response(
-            {"error": "Endpoint no disponible en produccion"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    # Generar checkout_id unico cada vez (timestamp + random)
-    import time
-    import random
-    checkout_id = f"dev-{int(time.time())}-{random.randint(100, 999)}"
-
-    precio = Decimal("30000")
-    cantidad = 1
-    total = precio * cantidad
-
-    # Identificador fijo solo para crear órdenes de prueba en DEBUG.
-    order = Order.objects.create(
-        cliente_id=1,
-        checkout_id=checkout_id,
-        status="PENDIENTE_PAGO",
-        total_amount=total,
-        moneda="CLP",
-    )
-    OrderItem.objects.create(
-        order=order,
-        producto_id=1,
-        historical_product_name="Teclado Mecanico Dev",
-        historical_price=precio,
-        moneda="CLP",
-        quantity=cantidad,
-        subtotal=total,
-    )
-
-    return Response({
-        "id": order.id,
-        "checkout_id": order.checkout_id,
-        "status": order.status,
-        "total_amount": str(order.total_amount),
-        "moneda": order.moneda,
-    }, status=status.HTTP_201_CREATED)
