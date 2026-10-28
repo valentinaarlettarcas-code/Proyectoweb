@@ -19,8 +19,8 @@ function Inicio() {
     <div className="contenedor">
       <section className="hero">
         <h1>
-          Bienvenido a <span style={{ color: 'var(--color-primario)' }}>SETUP</span>
-          <span style={{ color: 'var(--color-secundario)' }}>VERSE</span>
+          Bienvenido a <span style={{ color: 'var(--color-texto)' }}>SETUP</span>
+          <span style={{ color: 'var(--color-primario)' }}>VERSE</span>
         </h1>
         <p>Accesorios tech y gaming para armar tu setup perfecto</p>
         <Link to="/catalogo" className="boton boton-primario">Ver catálogo</Link>

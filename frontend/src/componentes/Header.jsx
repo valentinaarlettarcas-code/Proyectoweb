@@ -54,9 +54,9 @@ function Header() {
     <header style={estiloHeader}>
       <Link to="/" style={estiloLogo}>
         <img
-          src="/logo.png"
+          src="/isotipo.png"
           alt="SETUPVERSE"
-          style={{ height: '40px', width: 'auto' }}
+          style={{ height: '50px', width: 'auto' }}
           onError={(e) => { e.target.style.display = 'none'; }}
         />
         <span style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '1px' }}>
