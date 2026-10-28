@@ -8,31 +8,33 @@ function RetornoPago() {
   const abandono = tbkToken && !tokenWs;
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Retorno de pago</h1>
+    <div className="contenedor" style={{ maxWidth: '600px' }}>
+      <h1 style={{ marginBottom: '20px' }}>Retorno de pago</h1>
 
       {abandono && (
-        <div style={{ padding: '10px', backgroundColor: '#fee', border: '1px solid #c33', margin: '10px 0' }}>
+        <div className="mensaje-error">
           <strong>Pago abandonado o cancelado.</strong>
-          <p>La orden no fue confirmada. Puedes reintentar.</p>
-          {tbkOrden && <p>Orden: {tbkOrden}</p>}
+          <p style={{ marginTop: '6px' }}>La orden no fue confirmada. Puedes reintentar.</p>
+          {tbkOrden && <p style={{ marginTop: '6px' }}>Orden: {tbkOrden}</p>}
         </div>
       )}
 
       {tokenWs && (
-        <div style={{ padding: '10px', backgroundColor: '#efe', border: '1px solid #3c3', margin: '10px 0' }}>
+        <div className="mensaje-exito">
           <strong>Token recibido de Transbank:</strong>
-          <p style={{ wordBreak: 'break-all' }}>{tokenWs}</p>
-          <p><small>H3 implementara la verificacion enviando este token al backend.</small></p>
+          <p style={{ marginTop: '6px', wordBreak: 'break-all' }}>{tokenWs}</p>
+          <p style={{ marginTop: '8px', fontSize: '13px' }}>
+            H3 implementará la verificación enviando este token al backend.
+          </p>
         </div>
       )}
 
-      {!tokenWs && !abandono && <p>Llegaste aqui sin token valido.</p>}
+      {!tokenWs && !abandono && (
+        <p className="texto-secundario">Llegaste aquí sin un token válido.</p>
+      )}
 
-      <div style={{ marginTop: '20px' }}>
-        <Link to="/carrito">
-          <button style={{ padding: '10px 20px', cursor: 'pointer' }}>Volver al carrito</button>
-        </Link>
+      <div className="margin-top">
+        <Link to="/carrito" className="boton boton-secundario">Volver al carrito</Link>
       </div>
     </div>
   );
