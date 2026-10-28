@@ -17,7 +17,7 @@ class AjusteStockAdminTests(SimpleTestCase):
         self.cliente = APIClient()
         self.ruta = "/api/admin/productos/5/ajustar-stock/"
         self.entorno = patch.dict(os.environ, {
-            "GESTION_VERIFICAR_TOKEN_URL":
+            "GESTION_VERIFY_TOKEN_URL":
                 "http://127.0.0.1:8001/api/usuarios/verificar-token/",
         })
         self.entorno.start()

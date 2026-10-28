@@ -1,6 +1,7 @@
 
 import os
 from unittest.mock import patch
+from .pruebas_gestion import configurar_autenticacion_de_prueba, rechazar_token_de_prueba
 
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
@@ -14,18 +15,13 @@ class ListarProductosAdminHTTPTests(SimpleTestCase):
         self.ruta = "/api/admin/productos/"
         self.token = "token-pruebas-catalogo"
 
-        entorno = patch.dict(
-            os.environ,
-            {"CATALOGO_ADMIN_TOKEN": self.token},
-        )
-        entorno.start()
-        self.addCleanup(entorno.stop)
+        self.gestion_http = configurar_autenticacion_de_prueba(self)
 
     def listar(self):
         """Realiza una solicitud autenticada al listado."""
         return self.cliente.get(
             self.ruta,
-            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+            HTTP_AUTHORIZATION=f"Token {self.token}",
         )
 
     @patch("productos.admin_views.obtener_bd")
@@ -139,11 +135,12 @@ class ListarProductosAdminHTTPTests(SimpleTestCase):
 
     @patch("productos.admin_views.obtener_bd")
     def test_token_incorrecto(self, mock_bd):
+        rechazar_token_de_prueba(self.gestion_http)
         """Un token administrativo incorrecto es rechazado."""
 
         respuesta = self.cliente.get(
             self.ruta,
-            HTTP_AUTHORIZATION="Bearer token-incorrecto",
+            HTTP_AUTHORIZATION="Token token-incorrecto",
         )
 
         self.assertEqual(respuesta.status_code, 401)

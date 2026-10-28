@@ -19,8 +19,8 @@ from reservas_stock import reservar_stock
 from .mongo import obtener_bd
 
 
-# Autenticacion interna provisional.
-# Se reemplazara al integrar verificar-token de Gestion.
+# Autenticacion interna entre microservicios: Comercio utiliza un Bearer
+# compartido (CATALOGO_INTERNAL_TOKEN). No es autenticacion personal de Gestion.
 class ServicioInterno:
     is_authenticated = True
 
