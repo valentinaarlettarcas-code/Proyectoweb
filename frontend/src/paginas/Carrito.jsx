@@ -1,21 +1,44 @@
-import {Link} from 'react-router-dom'
-function Carrito(){
-    return(
-        <div style={{padding: '20px'}}>
-            <h1> Carrito de compras</h1>
-            <p>Aqui se listarán los productos del carrito.</p>
-            <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #ccc', width: 'fit-content' }}>
-                <p><strong>Producto Simulado:</strong> Teclado Mecanico</p>
-                <p>Precio: $30.000 CLP</p>
+import { Link } from 'react-router-dom';
+
+function Carrito() {
+  // Mock de productos del carrito
+  const items = [
+    { id: 1, nombre: 'Teclado Mecánico RGB', precio: 30000, cantidad: 1 },
+  ];
+  const total = items.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
+
+  return (
+    <div className="contenedor">
+      <h1 style={{ marginBottom: '20px' }}>Carrito de compras</h1>
+
+      {items.length === 0 ? (
+        <p className="texto-secundario texto-centrado" style={{ padding: '40px' }}>
+          Tu carrito está vacío.
+        </p>
+      ) : (
+        <>
+          {items.map((item) => (
+            <div key={item.id} className="tarjeta" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 className="producto-nombre">{item.nombre}</h3>
+                <p className="texto-secundario">Cantidad: {item.cantidad}</p>
+              </div>
+              <p className="producto-precio">${(item.precio * item.cantidad).toLocaleString('es-CL')} CLP</p>
             </div>
-            <Link to="/checkout">
-                <button style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer' }}>
-                Ir a Pagar
-                </button>
-            </Link>
+          ))}
 
-        </div>
+          <div className="tarjeta" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong>Total:</strong>
+            <p className="producto-precio" style={{ fontSize: '20px' }}>${total.toLocaleString('es-CL')} CLP</p>
+          </div>
 
-    );
+          <div style={{ marginTop: '20px' }}>
+            <Link to="/checkout" className="boton boton-primario">Ir a pagar</Link>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
+
 export default Carrito;
