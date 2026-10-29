@@ -10,7 +10,7 @@ def _bool(name, default=False):
     return os.environ.get(name, str(default)).lower() in {"1", "true", "yes", "on"}
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
-DEBUG = _bool("DJANGO_DEBUG", True)
+DEBUG = _bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 CORS_ALLOWED_ORIGINS = [
