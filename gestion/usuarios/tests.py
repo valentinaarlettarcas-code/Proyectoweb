@@ -129,6 +129,42 @@ class GestionUsuariosTests(APITestCase):
             status.HTTP_400_BAD_REQUEST
         )
 
+
+    def test_bloqueado_no_puede_usar_token_anterior(self):
+        admin = self.crear_usuario(
+            "admin-seguridad@test.com",
+            rol=Usuario.Rol.ADMIN
+        )
+        cliente = self.crear_usuario("cliente-token@test.com")
+
+        token_admin = Token.objects.create(user=admin)
+        token_cliente = Token.objects.create(user=cliente)
+
+        # El administrador bloquea al cliente.
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {token_admin.key}"
+        )
+
+        respuesta = self.client.post(
+            reverse("bloquear-usuario", args=[cliente.id])
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+
+        # El token anterior debe quedar invalidado.
+        self.assertFalse(
+            Token.objects.filter(user=cliente).exists()
+        )
+
+        # Intentamos acceder utilizando el token antiguo.
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {token_cliente.key}"
+        )
+
+        respuesta = self.client.get(reverse("verificar-token"))
+
+        self.assertIn(respuesta.status_code, [401, 403])
+
     def test_cliente_no_puede_listar_usuarios(self):
         cliente = self.crear_usuario("cliente@test.com")
         token = Token.objects.create(user=cliente)
@@ -204,33 +240,41 @@ class GestionUsuariosTests(APITestCase):
             status.HTTP_403_FORBIDDEN
         )
 
+    
+    
     def test_no_se_puede_bloquear_ultimo_admin_activo(self):
         admin1 = self.crear_usuario(
             "admin1@test.com",
             rol=Usuario.Rol.ADMIN
         )
-
         admin2 = self.crear_usuario(
             "admin2@test.com",
-            rol=Usuario.Rol.ADMIN,
-            estado=Usuario.Estado.BLOQUEADO
+            rol=Usuario.Rol.ADMIN
         )
 
         token = Token.objects.create(user=admin1)
-
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Token {token.key}"
         )
 
+        # Bloquear al segundo administrador.
         respuesta = self.client.post(
             reverse("bloquear-usuario", args=[admin2.id])
         )
+        self.assertEqual(respuesta.status_code, 200)
 
-        # El admin2 ya está bloqueado; comprobamos además que
-        # el único administrador activo sigue siendo admin1.
+        admin2.refresh_from_db()
+        self.assertEqual(admin2.estado, Usuario.Estado.BLOQUEADO)
+
+        # El único administrador activo no puede autobloquearse.
+        respuesta = self.client.post(
+            reverse("bloquear-usuario", args=[admin1.id])
+        )
+        self.assertEqual(respuesta.status_code, 403)
+
         admin1.refresh_from_db()
-
         self.assertEqual(admin1.estado, Usuario.Estado.ACTIVO)
+
     def test_admin_puede_desbloquear_usuario_bloqueado(self):
         admin = self.crear_usuario(
             "admin-desbloqueo@test.com",
