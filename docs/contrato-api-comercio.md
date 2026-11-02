@@ -111,11 +111,12 @@ Webpay Plus no usa webhook: el cliente vuelve a `return_url` con un `token_ws` y
 Hecho:
 
 - Reserva de stock en Catálogo al crear la orden, con identificador idempotente `orden-<id>` (autenticada con `CATALOGO_INTERNAL_TOKEN`).
+- Al volver de Webpay, un pago aprobado consolida la reserva en Catálogo, y uno rechazado o cancelado la libera (`PAGO_RECHAZADO` o `PAGO_CANCELADO`).
 
 Pendiente (Sprint 6, HU-12 a HU-14):
 
-- Confirmar la transacción al volver de Webpay, verificando autorización, importe y moneda, sin procesar dos veces el mismo resultado.
-- Consolidar el stock, confirmar la orden y liberar la reserva si el pago falla.
+- Por verificar: la autorización, el importe y la moneda al volver de Webpay, y que el mismo resultado no se procese dos veces.
+- Por verificar: que la orden pase a `CONFIRMADA` (o `CONFIRMACION_PENDIENTE`) tras consolidar el stock.
 - La consulta previa de productos responde 400 si Catálogo no está disponible, mientras que la reserva responde 503. Unificar el criterio.
 - Unificar los códigos de autenticación de los dos endpoints (comprobado con el servicio en ejecución: hoy 403 en órdenes y 401 en pagos).
 
