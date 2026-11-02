@@ -1,29 +1,11 @@
 ﻿
 import { useEffect, useState } from "react";
-import { obtenerToken, obtenerUsuarioActual } from "../servicios/gestion";
+import { obtenerToken, obtenerUsuarioActual, peticionGestion } from "../servicios/gestion";
 import "./PanelUsuarios.css";
 
-const API = "/api/gestion/";
-
-function mensajeError(datos, codigo) {
-  if (!datos || typeof datos !== "object") {
-    return `Error HTTP ${codigo}`;
-  }
-
-  return Object.entries(datos)
-    .map(([campo, valor]) => {
-      const texto = Array.isArray(valor) ? valor.join(", ") : String(valor);
-      return ["error", "detail", "non_field_errors"].includes(campo)
-        ? texto
-        : `${campo}: ${texto}`;
-    })
-    .join(" | ");
-}
-
 export default function App() {
-  const [token, setToken] = useState(() => obtenerToken() || "");
-  const [admin, setAdmin] = useState(() => obtenerUsuarioActual());
-  const [login, setLogin] = useState({ email: "", password: "" });
+  const token = obtenerToken();
+  const admin = obtenerUsuarioActual();
   const [usuarios, setUsuarios] = useState([]);
   const [seleccionado, setSeleccionado] = useState(null);
   const [formulario, setFormulario] = useState({
@@ -38,77 +20,16 @@ export default function App() {
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
 
-  async function peticion(ruta, opciones = {}, credencial = token) {
-    let respuesta;
-
-    try {
-      respuesta = await fetch(API + ruta, {
-        ...opciones,
-        headers: {
-          ...(opciones.body ? { "Content-Type": "application/json" } : {}),
-          ...(credencial ? { Authorization: `Token ${credencial}` } : {}),
-        },
-      });
-    } catch {
-      throw new Error("No se puede conectar con Django. Comprueba el servidor.");
-    }
-
-    const datos = await respuesta.json().catch(() => ({}));
-
-    if (!respuesta.ok) {
-      throw new Error(mensajeError(datos, respuesta.status));
-    }
-
-    return datos;
-  }
-
-  async function cargarUsuarios(credencial = token) {
-    const datos = await peticion("", {}, credencial);
+  async function cargarUsuarios() {
+    const datos = await peticionGestion("");
     setUsuarios(Array.isArray(datos) ? datos : datos.results || []);
   }
 
-  async function iniciarSesion(e) {
-    e.preventDefault();
-    setError("");
-    setMensaje("");
-    setCargando(true);
-
-    try {
-      const datos = await peticion("login/", {
-        method: "POST",
-        body: JSON.stringify(login),
-      }, "");
-
-      if (datos.usuario?.rol !== "ADMIN") {
-        await peticion("logout/", { method: "POST" }, datos.token);
-        throw new Error("Acceso denegado. Solo administradores.");
-      }
-
-      await cargarUsuarios(datos.token);
-      setToken(datos.token);
-      setAdmin(datos.usuario);
-      setLogin({ email: "", password: "" });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setCargando(false);
+  useEffect(() => {
+    if (token && admin?.rol === "ADMIN") {
+      cargarUsuarios().catch(err => setError(err.message));
     }
-  }
-
-  async function cerrarSesion() {
-    try {
-      await peticion("logout/", { method: "POST" });
-    } catch {
-      // Tambi├®n se cierra la sesi├│n local si falla la red.
-    }
-    setToken("");
-    setAdmin(null);
-    setUsuarios([]);
-    setSeleccionado(null);
-    setModo("");
-    setError("");
-    setMensaje("");
-  }
+  }, [token, admin?.rol]);
 
   function nuevoUsuario() {
     setFormulario({
@@ -128,7 +49,7 @@ export default function App() {
     setMensaje("");
 
     try {
-      const datos = await peticion(`${usuario.id}/`);
+      const datos = await peticionGestion(`${usuario.id}/`);
       setSeleccionado(datos);
       setFormulario({
         first_name: datos.first_name,
@@ -150,13 +71,13 @@ export default function App() {
 
     try {
       if (modo === "crear") {
-        await peticion("admin/crear/", {
+        await peticionGestion("admin/crear/", {
           method: "POST",
           body: JSON.stringify(formulario),
         });
         setMensaje("Usuario creado. Se ha solicitado el env├¡o del token de activaci├│n por correo.");
       } else {
-        await peticion(`${seleccionado.id}/`, {
+        await peticionGestion(`${seleccionado.id}/`, {
           method: "PATCH",
           body: JSON.stringify({
             first_name: formulario.first_name,
@@ -190,7 +111,7 @@ export default function App() {
     setMensaje("");
 
     try {
-      await peticion(`${usuario.id}/${accion}/`, {
+      await peticionGestion(`${usuario.id}/${accion}/`, {
         method: "POST",
       });
       await cargarUsuarios();
@@ -210,47 +131,13 @@ export default function App() {
       .includes(busqueda.toLowerCase())
   );
 
-  if (!admin) {
-    return (
-      <main className="login-pagina">
-        <form className="login-card" onSubmit={iniciarSesion}>
-          <div className="logo">HH</div>
-          <h1>Panel de Gesti├│n</h1>
-          <p>Acceso exclusivo para administradores</p>
-
-          {error && <div className="alerta error">{error}</div>}
-
-          <label>Correo electr├│nico</label>
-          <input
-            type="email"
-            required
-            value={login.email}
-            onChange={(e) =>
-              setLogin({ ...login, email: e.target.value })
-            }
-            placeholder="admin@ejemplo.com"
-          />
-
-          <label>Contrase├▒a</label>
-          <input
-            type="password"
-            required
-            value={login.password}
-            onChange={(e) =>
-              setLogin({ ...login, password: e.target.value })
-            }
-          />
-
-          <button className="principal" disabled={cargando}>
-            {cargando ? "Entrando..." : "Iniciar sesi├│n"}
-          </button>
-        </form>
-      </main>
-    );
+  if (!token || admin?.rol !== "ADMIN") {
+    return <main className="contenedor"><h2>Acceso restringido</h2><p>Inicia sesión como administrador.</p><a href="/login">Ir al login</a></main>;
   }
 
   return (
-    <div className="aplicacion">
+    <div className="gestion-usuarios">
+      <div className="aplicacion">
       <aside className="sidebar">
         <div className="marca">
           <div className="logo">HH</div>
@@ -262,7 +149,7 @@ export default function App() {
         <div className="sidebar-abajo">
           <small>Administrador</small>
           <p>{admin.email}</p>
-          <button onClick={cerrarSesion}>Cerrar sesi├│n</button>
+          <a href="/admin">Volver al panel</a>
         </div>
       </aside>
 
@@ -434,6 +321,7 @@ export default function App() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }

@@ -1,17 +1,17 @@
 ﻿
-:root {
+.gestion-usuarios {
   font-family: Inter, Arial, sans-serif;
   color: #26344b;
   background: #f5f7fb;
 }
 
-* { box-sizing: border-box; }
+.gestion-usuarios * { box-sizing: border-box; }
 
-body { margin: 0; }
+.gestion-usuarios { margin: 0; }
 
-button, input, select { font: inherit; }
+.gestion-usuarios button, .gestion-usuarios input, .gestion-usuarios select { font: inherit; }
 
-button {
+.gestion-usuarios button {
   cursor: pointer;
   border: 1px solid #dce2ec;
   border-radius: 8px;
@@ -20,10 +20,10 @@ button {
   color: #34435a;
 }
 
-button:hover:not(:disabled) { background: #eef3fa; }
-button:disabled { opacity: .4; cursor: not-allowed; }
+.gestion-usuarios button:hover:not(:disabled) { background: #eef3fa; }
+.gestion-usuarios button:disabled { opacity: .4; cursor: not-allowed; }
 
-input, select {
+.gestion-usuarios input, .gestion-usuarios select {
   border: 1px solid #dce2ec;
   border-radius: 8px;
   padding: 12px;
@@ -32,34 +32,34 @@ input, select {
   color: #26344b;
 }
 
-label {
+.gestion-usuarios label {
   display: block;
   margin: 15px 0 7px;
   font-size: 13px;
   font-weight: 600;
 }
 
-h1 { margin: 8px 0; font-size: 28px; }
-h2 { margin: 0; font-size: 19px; }
-p { color: #7a8798; }
+.gestion-usuarios h1 { margin: 8px 0; font-size: 28px; }
+.gestion-usuarios h2 { margin: 0; font-size: 19px; }
+.gestion-usuarios p { color: #7a8798; }
 
-.principal {
+.gestion-usuarios .principal {
   background: #3158d5;
   color: white;
   border: 0;
   font-weight: 600;
 }
 
-.principal:hover:not(:disabled) { background: #2548bb; }
+.gestion-usuarios .principal:hover:not(:disabled) { background: #2548bb; }
 
-.login-pagina {
+.gestion-usuarios .login-pagina {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 20px;
 }
 
-.login-card {
+.gestion-usuarios .login-card {
   background: white;
   width: 100%;
   max-width: 400px;
@@ -68,13 +68,13 @@ p { color: #7a8798; }
   box-shadow: 0 8px 35px #26344b12;
 }
 
-.login-card .principal {
+.gestion-usuarios .login-card .principal {
   width: 100%;
   margin-top: 22px;
   padding: 13px;
 }
 
-.logo {
+.gestion-usuarios .logo {
   background: #3158d5;
   color: white;
   padding: 11px;
@@ -83,9 +83,9 @@ p { color: #7a8798; }
   width: fit-content;
 }
 
-.aplicacion { display: flex; min-height: 100vh; }
+.gestion-usuarios .aplicacion { display: flex; min-height: 100vh; }
 
-.sidebar {
+.gestion-usuarios .sidebar {
   background: #17243c;
   color: white;
   width: 240px;
@@ -95,31 +95,31 @@ p { color: #7a8798; }
   flex-shrink: 0;
 }
 
-.marca {
+.gestion-usuarios .marca {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 45px;
 }
 
-.menu-activo {
+.gestion-usuarios .menu-activo {
   background: #304565;
   border-radius: 9px;
   padding: 14px;
   font-size: 14px;
 }
 
-.sidebar-abajo { margin-top: auto; overflow-wrap: anywhere; }
-.sidebar-abajo p { color: #d3dbea; font-size: 13px; }
-.sidebar-abajo button { width: 100%; }
+.gestion-usuarios .sidebar-abajo { margin-top: auto; overflow-wrap: anywhere; }
+.gestion-usuarios .sidebar-abajo p { color: #d3dbea; font-size: 13px; }
+.gestion-usuarios .sidebar-abajo button { width: 100%; }
 
-.contenido {
+.gestion-usuarios .contenido {
   padding: 35px;
   flex: 1;
   min-width: 0;
 }
 
-.cabecera {
+.gestion-usuarios .cabecera {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -127,33 +127,33 @@ p { color: #7a8798; }
   margin-bottom: 30px;
 }
 
-.subtitulo {
+.gestion-usuarios .subtitulo {
   font-size: 11px;
   font-weight: 700;
   color: #3158d5;
   letter-spacing: 1.2px;
 }
 
-.estadisticas {
+.gestion-usuarios .estadisticas {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 25px;
 }
 
-.estadisticas article, .panel {
+.gestion-usuarios .estadisticas article, .gestion-usuarios .panel {
   background: white;
   border: 1px solid #e8edf4;
   border-radius: 12px;
 }
 
-.estadisticas article { padding: 22px; }
-.estadisticas span { display: block; color: #7a8798; font-size: 13px; }
-.estadisticas strong { display: block; font-size: 30px; margin-top: 12px; }
+.gestion-usuarios .estadisticas article { padding: 22px; }
+.gestion-usuarios .estadisticas span { display: block; color: #7a8798; font-size: 13px; }
+.gestion-usuarios .estadisticas strong { display: block; font-size: 30px; margin-top: 12px; }
 
-.panel { overflow: hidden; }
+.gestion-usuarios .panel { overflow: hidden; }
 
-.panel-encabezado {
+.gestion-usuarios .panel-encabezado {
   padding: 22px;
   display: flex;
   align-items: center;
@@ -161,23 +161,23 @@ p { color: #7a8798; }
   gap: 20px;
 }
 
-.panel-encabezado input { max-width: 280px; }
+.gestion-usuarios .panel-encabezado input { max-width: 280px; }
 
-.tabla-scroll { overflow-x: auto; }
+.gestion-usuarios .tabla-scroll { overflow-x: auto; }
 
-table { width: 100%; border-collapse: collapse; text-align: left; }
-th, td { padding: 17px 20px; border-top: 1px solid #edf0f5; }
-th { color: #7a8798; font-size: 12px; background: #fafbfe; }
-td { font-size: 13px; }
+.gestion-usuarios table { width: 100%; border-collapse: collapse; text-align: left; }
+.gestion-usuarios th, .gestion-usuarios td { padding: 17px 20px; border-top: 1px solid #edf0f5; }
+.gestion-usuarios th { color: #7a8798; font-size: 12px; background: #fafbfe; }
+.gestion-usuarios td { font-size: 13px; }
 
-.acciones { display: flex; gap: 6px; }
+.gestion-usuarios .acciones { display: flex; gap: 6px; }
 
-.acciones button {
+.gestion-usuarios .acciones button {
   font-size: 12px;
   padding: 7px;
 }
 
-.estado {
+.gestion-usuarios .estado {
   display: inline-block;
   padding: 6px 10px;
   border-radius: 20px;
@@ -185,23 +185,23 @@ td { font-size: 13px; }
   font-weight: 700;
 }
 
-.activo { background: #e3f8ef; color: #187951; }
-.bloqueado { background: #ffe7e7; color: #ae3535; }
-.pendiente { background: #fff2d7; color: #976100; }
+.gestion-usuarios .activo { background: #e3f8ef; color: #187951; }
+.gestion-usuarios .bloqueado { background: #ffe7e7; color: #ae3535; }
+.gestion-usuarios .pendiente { background: #fff2d7; color: #976100; }
 
-.alerta {
+.gestion-usuarios .alerta {
   padding: 13px;
   border-radius: 9px;
   margin: 15px 0;
   font-size: 13px;
 }
 
-.error { background: #ffe7e7; color: #a62c2c; }
-.exito { background: #e3f8ef; color: #187951; }
+.gestion-usuarios .error { background: #ffe7e7; color: #a62c2c; }
+.gestion-usuarios .exito { background: #e3f8ef; color: #187951; }
 
-.vacio { text-align: center; padding: 35px; color: #7a8798; }
+.gestion-usuarios .vacio { text-align: center; padding: 35px; color: #7a8798; }
 
-.modal-fondo {
+.gestion-usuarios .modal-fondo {
   position: fixed;
   inset: 0;
   background: #0d1b33a8;
@@ -210,7 +210,7 @@ td { font-size: 13px; }
   padding: 15px;
 }
 
-.modal {
+.gestion-usuarios .modal {
   background: white;
   width: 100%;
   max-width: 460px;
@@ -220,36 +220,36 @@ td { font-size: 13px; }
   overflow-y: auto;
 }
 
-.modal-cabecera {
+.gestion-usuarios .modal-cabecera {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 15px;
 }
 
-.botones-formulario {
+.gestion-usuarios .botones-formulario {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 25px;
 }
 
-.detalle p { color: #34435a; }
+.gestion-usuarios .detalle p { color: #34435a; }
 
 @media (max-width: 900px) {
-  .sidebar { width: 180px; }
-  .contenido { padding: 20px; }
-  .estadisticas { grid-template-columns: repeat(2, 1fr); }
+  .gestion-usuarios .sidebar { width: 180px; }
+  .gestion-usuarios .contenido { padding: 20px; }
+  .gestion-usuarios .estadisticas { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 650px) {
-  .aplicacion { display: block; }
-  .sidebar { width: 100%; gap: 12px; }
-  .marca { margin-bottom: 5px; }
-  .sidebar-abajo { display: none; }
-  .cabecera, .panel-encabezado {
+  .gestion-usuarios .aplicacion { display: block; }
+  .gestion-usuarios .sidebar { width: 100%; gap: 12px; }
+  .gestion-usuarios .marca { margin-bottom: 5px; }
+  .gestion-usuarios .sidebar-abajo { display: none; }
+  .gestion-usuarios .cabecera, .gestion-usuarios .panel-encabezado {
     flex-direction: column;
     align-items: stretch;
   }
-  .panel-encabezado input { max-width: none; }
+  .gestion-usuarios .panel-encabezado input { max-width: none; }
 }
