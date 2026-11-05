@@ -1,10 +1,9 @@
 import pytest
 import requests 
 
-BASE_URL = "http://localhost:8000/api" 
+BASE_URL = "http://localhost:8001/api" 
 
 def test_paginacion_maximo_50_productos():
-    # Verifica que devuelva máximo 50 productos por respuesta
     response = requests.get(f"{BASE_URL}/catalogo?page=1")
     assert response.status_code == 200
     productos = response.json().get("productos", [])
@@ -45,7 +44,16 @@ def test_productos_inactivos_no_aparecen_en_catalogo():
     assert len(inactivos) == 0
 
 def test_productos_agotados_no_se_pueden_agregar():
-    # Verifica que un producto sin stock disponible (ejemplo: ID 18) 
-    payload = {"producto_id": 18, "cantidad": 1}
-    response = requests.post(f"{BASE_URL}/carrito/agregar", json=payload)
+    # 1. Producto temporal sin stock
+    payload_crear = {"nombre": "Agotado", "precio": 1000, "stock": {"disponible": 0}, "activo": True, "imagenes": ["1.jpg", "2.jpg", "3.jpg"]}
+    res_crear = requests.post(f"{BASE_URL}/productos", json=payload_crear)
+    
+    # Extraemos el ID generado. Si falla, usamos el 18 como respaldo para que no caiga el código de inmediato.
+    producto_creado_id = res_crear.json().get("id") if res_crear.status_code in [200, 201] else 18
+
+    # 2. Intentamos agregarlo al carrito
+    payload_carrito = {"producto_id": producto_creado_id, "cantidad": 1}
+    response = requests.post(f"{BASE_URL}/carrito/agregar", json=payload_carrito)
+    
+    # 3. Verificamos que falle por falta de stock
     assert response.status_code in [400, 409]
