@@ -113,3 +113,26 @@ export const esAdmin = () => {
   const u = obtenerUsuarioActual();
   return u?.rol === 'ADMIN';
 };
+// Peticiones autenticadas del panel de usuarios (SCRUM-21).
+export async function peticionGestion(ruta, opciones = {}) {
+  const token = obtenerToken();
+  if (!token) throw new Error('Debes iniciar sesión.');
+  try {
+    const respuesta = await api.request({
+      url: ruta,
+      method: opciones.method || 'GET',
+      ...(opciones.body ? { data: JSON.parse(opciones.body) } : {}),
+      headers: { Authorization: `Token ${token}` },
+    });
+    return respuesta.data;
+  } catch (err) {
+    const datos = err.response?.data;
+    const mensaje = datos && typeof datos === 'object'
+      ? Object.entries(datos).map(([campo, valor]) => {
+          const texto = Array.isArray(valor) ? valor.join(', ') : String(valor);
+          return ['error', 'detail', 'non_field_errors'].includes(campo) ? texto : `${campo}: ${texto}`;
+        }).join(' | ')
+      : err.message;
+    throw new Error(mensaje || 'No se pudo conectar con Gestión.');
+  }
+}

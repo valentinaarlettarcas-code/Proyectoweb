@@ -1,0 +1,255 @@
+﻿
+.gestion-usuarios {
+  font-family: Inter, Arial, sans-serif;
+  color: #26344b;
+  background: #f5f7fb;
+}
+
+.gestion-usuarios * { box-sizing: border-box; }
+
+.gestion-usuarios { margin: 0; }
+
+.gestion-usuarios button, .gestion-usuarios input, .gestion-usuarios select { font: inherit; }
+
+.gestion-usuarios button {
+  cursor: pointer;
+  border: 1px solid #dce2ec;
+  border-radius: 8px;
+  padding: 9px 13px;
+  background: white;
+  color: #34435a;
+}
+
+.gestion-usuarios button:hover:not(:disabled) { background: #eef3fa; }
+.gestion-usuarios button:disabled { opacity: .4; cursor: not-allowed; }
+
+.gestion-usuarios input, .gestion-usuarios select {
+  border: 1px solid #dce2ec;
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+  background: white;
+  color: #26344b;
+}
+
+.gestion-usuarios label {
+  display: block;
+  margin: 15px 0 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gestion-usuarios h1 { margin: 8px 0; font-size: 28px; }
+.gestion-usuarios h2 { margin: 0; font-size: 19px; }
+.gestion-usuarios p { color: #7a8798; }
+
+.gestion-usuarios .principal {
+  background: #3158d5;
+  color: white;
+  border: 0;
+  font-weight: 600;
+}
+
+.gestion-usuarios .principal:hover:not(:disabled) { background: #2548bb; }
+
+.gestion-usuarios .login-pagina {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.gestion-usuarios .login-card {
+  background: white;
+  width: 100%;
+  max-width: 400px;
+  padding: 35px;
+  border-radius: 16px;
+  box-shadow: 0 8px 35px #26344b12;
+}
+
+.gestion-usuarios .login-card .principal {
+  width: 100%;
+  margin-top: 22px;
+  padding: 13px;
+}
+
+.gestion-usuarios .logo {
+  background: #3158d5;
+  color: white;
+  padding: 11px;
+  border-radius: 10px;
+  font-weight: 800;
+  width: fit-content;
+}
+
+.gestion-usuarios .aplicacion { display: flex; min-height: 100vh; }
+
+.gestion-usuarios .sidebar {
+  background: #17243c;
+  color: white;
+  width: 240px;
+  padding: 24px 15px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.gestion-usuarios .marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 45px;
+}
+
+.gestion-usuarios .menu-activo {
+  background: #304565;
+  border-radius: 9px;
+  padding: 14px;
+  font-size: 14px;
+}
+
+.gestion-usuarios .sidebar-abajo { margin-top: auto; overflow-wrap: anywhere; }
+.gestion-usuarios .sidebar-abajo p { color: #d3dbea; font-size: 13px; }
+.gestion-usuarios .sidebar-abajo button { width: 100%; }
+
+.gestion-usuarios .contenido {
+  padding: 35px;
+  flex: 1;
+  min-width: 0;
+}
+
+.gestion-usuarios .cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.gestion-usuarios .subtitulo {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3158d5;
+  letter-spacing: 1.2px;
+}
+
+.gestion-usuarios .estadisticas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 25px;
+}
+
+.gestion-usuarios .estadisticas article, .gestion-usuarios .panel {
+  background: white;
+  border: 1px solid #e8edf4;
+  border-radius: 12px;
+}
+
+.gestion-usuarios .estadisticas article { padding: 22px; }
+.gestion-usuarios .estadisticas span { display: block; color: #7a8798; font-size: 13px; }
+.gestion-usuarios .estadisticas strong { display: block; font-size: 30px; margin-top: 12px; }
+
+.gestion-usuarios .panel { overflow: hidden; }
+
+.gestion-usuarios .panel-encabezado {
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.gestion-usuarios .panel-encabezado input { max-width: 280px; }
+
+.gestion-usuarios .tabla-scroll { overflow-x: auto; }
+
+.gestion-usuarios table { width: 100%; border-collapse: collapse; text-align: left; }
+.gestion-usuarios th, .gestion-usuarios td { padding: 17px 20px; border-top: 1px solid #edf0f5; }
+.gestion-usuarios th { color: #7a8798; font-size: 12px; background: #fafbfe; }
+.gestion-usuarios td { font-size: 13px; }
+
+.gestion-usuarios .acciones { display: flex; gap: 6px; }
+
+.gestion-usuarios .acciones button {
+  font-size: 12px;
+  padding: 7px;
+}
+
+.gestion-usuarios .estado {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gestion-usuarios .activo { background: #e3f8ef; color: #187951; }
+.gestion-usuarios .bloqueado { background: #ffe7e7; color: #ae3535; }
+.gestion-usuarios .pendiente { background: #fff2d7; color: #976100; }
+
+.gestion-usuarios .alerta {
+  padding: 13px;
+  border-radius: 9px;
+  margin: 15px 0;
+  font-size: 13px;
+}
+
+.gestion-usuarios .error { background: #ffe7e7; color: #a62c2c; }
+.gestion-usuarios .exito { background: #e3f8ef; color: #187951; }
+
+.gestion-usuarios .vacio { text-align: center; padding: 35px; color: #7a8798; }
+
+.gestion-usuarios .modal-fondo {
+  position: fixed;
+  inset: 0;
+  background: #0d1b33a8;
+  display: grid;
+  place-items: center;
+  padding: 15px;
+}
+
+.gestion-usuarios .modal {
+  background: white;
+  width: 100%;
+  max-width: 460px;
+  padding: 25px;
+  border-radius: 15px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.gestion-usuarios .modal-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.gestion-usuarios .botones-formulario {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.gestion-usuarios .detalle p { color: #34435a; }
+
+@media (max-width: 900px) {
+  .gestion-usuarios .sidebar { width: 180px; }
+  .gestion-usuarios .contenido { padding: 20px; }
+  .gestion-usuarios .estadisticas { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 650px) {
+  .gestion-usuarios .aplicacion { display: block; }
+  .gestion-usuarios .sidebar { width: 100%; gap: 12px; }
+  .gestion-usuarios .marca { margin-bottom: 5px; }
+  .gestion-usuarios .sidebar-abajo { display: none; }
+  .gestion-usuarios .cabecera, .gestion-usuarios .panel-encabezado {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .gestion-usuarios .panel-encabezado input { max-width: none; }
+}
