@@ -30,21 +30,26 @@ Reglas de trabajo del equipo para el proyecto de comercio electrónico de acceso
 
 ## Pull Requests
 
-- Un Pull Request por rama, con el ID de la historia en el título. Ejemplo: `HU-07: Contacto`.
+- Un Pull Request por rama, con el ID de la historia o del ticket de Jira en el título. Ejemplos: `HU-07: Contacto` o `feat(gestion): integrar panel de usuarios SCRUM-21`.
 - La descripción indica los requisitos que cubre (RF) y cómo se probó.
 - Los tests del servicio deben pasar antes de pedir revisión.
 - Lo revisa al menos una persona distinta de quien lo escribió, idealmente de otro escuadrón.
 - Se integra solo con aprobación. Nadie integra su propio PR sin revisión.
+- Antes de abrir el PR, trae `main` a tu rama (`git fetch origin` y `git merge origin/main`) y resuelve los conflictos en tu rama, sin sobrescribir archivos de otras personas.
 
 ## Pruebas
 
 - Gestión: desde `gestion/`, `python manage.py test`.
 - Todo cambio de lógica incluye sus tests.
+- Catálogo: desde `catalogo-inventario/servicio_catalogo/`, `python manage.py test productos`.
+- Comercio: desde `comercio/`, `python manage.py test` (requiere PostgreSQL).
+- Frontend: desde `frontend/`, `npm run build` debe terminar sin errores.
 
 ## Secretos y configuración
 
 - Nunca se suben contraseñas, tokens, claves ni archivos `.env`.
 - Las variables de entorno se documentan sin valores reales.
+- Tampoco se suben `.venv/`, `node_modules/` ni `dist/`.
 
 ## Hitos y etiquetas
 
