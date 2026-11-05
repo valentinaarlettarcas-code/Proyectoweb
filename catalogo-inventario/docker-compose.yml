@@ -1,0 +1,29 @@
+# Para ingresar a la consola de mongo ejecutar el siguiente comando: 
+# "docker exec -it mongo_catalogo_1 mongosh"
+
+# Para consultar el estado: 
+# "rs.status()"
+
+version: '3.8'
+
+services:
+  mongo1:
+    image: mongo:6.0
+    container_name: mongo_catalogo_1
+    command: ["--replSet", "rs_catalogo", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27027:27017"
+
+  mongo2:
+    image: mongo:6.0
+    container_name: mongo_catalogo_2
+    command: ["--replSet", "rs_catalogo", "--bind_ip_all", "--port", "27018"]
+    ports:
+      - "27028:27018"
+
+  mongo3:
+    image: mongo:6.0
+    container_name: mongo_catalogo_3
+    command: ["--replSet", "rs_catalogo", "--bind_ip_all", "--port", "27019"]
+    ports:
+      - "27029:27019"
