@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { obtenerToken, obtenerUsuarioActual, peticionGestion } from "../servicios/gestion";
 import "./PanelUsuarios.css";
 
-export default function App() {
+export default function PanelUsuarios() {
   const token = obtenerToken();
   const admin = obtenerUsuarioActual();
   const [usuarios, setUsuarios] = useState([]);
@@ -21,6 +21,7 @@ export default function App() {
   const [cargando, setCargando] = useState(false);
 
   async function cargarUsuarios() {
+  
     const datos = await peticionGestion("");
     setUsuarios(Array.isArray(datos) ? datos : datos.results || []);
   }
@@ -141,7 +142,7 @@ export default function App() {
       <aside className="sidebar">
         <div className="marca">
           <div className="logo">HH</div>
-          <strong>The HoneyHand's</strong>
+          <strong>SetupVerse</strong>
         </div>
 
         <div className="menu-activo">Ôùë Gesti├│n de usuarios</div>
@@ -325,3 +326,4 @@ export default function App() {
     </div>
   );
 }
+
