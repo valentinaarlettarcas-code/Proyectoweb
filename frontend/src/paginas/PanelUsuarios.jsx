@@ -84,7 +84,7 @@ export default function PanelUsuarios() {
             first_name: formulario.first_name,
             last_name: formulario.last_name,
             email: formulario.email,
-          }),
+          })
         });
         setMensaje("Usuario actualizado correctamente.");
       }
@@ -141,7 +141,7 @@ export default function PanelUsuarios() {
       <div className="aplicacion">
       <aside className="sidebar">
         <div className="marca">
-          <div className="logo">HH</div>
+          <div className="logo">SV</div>
           <strong>SetupVerse</strong>
         </div>
 
@@ -192,6 +192,7 @@ export default function PanelUsuarios() {
           <div className="panel-encabezado">
             <h2>Usuarios registrados</h2>
             <input
+              aria-label="Buscar usuarios"
               placeholder="Buscar usuario..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
@@ -252,59 +253,88 @@ export default function PanelUsuarios() {
             </table>
           </div>
         </section>
+        
+      {modo && (
+        <div className="modal-fondo">
+          <section className="modal">
+            <div className="modal-cabecera">
+              <h2>
+                {modo === "crear" ? "Nuevo usuario" :
+                modo === "editar" ? "Editar usuario" : "Detalle del usuario"}
+              </h2>
+        <button
+          type="button"
+          aria-label="Cerrar ventana"
+          onClick={() => setModo("")}
+        >
+          ✕
+        </button>
+      </div>
 
-        {modo && (
-          <div className="modal-fondo">
-            <section className="modal">
-              <div className="modal-cabecera">
-                <h2>
-                  {modo === "crear" ? "Nuevo usuario" :
-                   modo === "editar" ? "Editar usuario" : "Detalle del usuario"}
-                </h2>
-                <button onClick={() => setModo("")}>Ô£ò</button>
-              </div>
+      {modo === "detalle" ? (
+        <div className="detalle">
+          <p><b>Nombre:</b> {seleccionado.first_name} {seleccionado.last_name}</p>
+          <p><b>Correo:</b> {seleccionado.email}</p>
+          <p><b>Rol:</b> {seleccionado.rol}</p>
+          <p><b>Estado:</b> {seleccionado.estado}</p>
+          <p><b>ID:</b> {seleccionado.id}</p>
+          <button type="button" onClick={() => setModo("")}>
+            Cerrar
+          </button>
+        </div>
+      ) : (
 
-              {modo === "detalle" ? (
-                <div className="detalle">
-                  <p><b>Nombre:</b> {seleccionado.first_name} {seleccionado.last_name}</p>
-                  <p><b>Correo:</b> {seleccionado.email}</p>
-                  <p><b>Rol:</b> {seleccionado.rol}</p>
-                  <p><b>Estado:</b> {seleccionado.estado}</p>
-                  <p><b>ID:</b> {seleccionado.id}</p>
-                  <button onClick={() => setModo("")}>Cerrar</button>
-                </div>
-              ) : (
-                <form onSubmit={guardar}>
-                  <label>Nombre</label>
-                  <input required value={formulario.first_name}
-                    onChange={e => setFormulario({
-                      ...formulario, first_name: e.target.value
-                    })} />
+            <form onSubmit={guardar}>
+              <label htmlFor="usuario-nombre">Nombre</label>
+              <input
+                id="usuario-nombre"
+                required
+                value={formulario.first_name}
+                onChange={(e) => setFormulario({
+                  ...formulario,
+                  first_name: e.target.value
+                })}
+              />
 
-                  <label>Apellido</label>
-                  <input required value={formulario.last_name}
-                    onChange={e => setFormulario({
-                      ...formulario, last_name: e.target.value
-                    })} />
+              <label htmlFor="usuario-apellido">Apellido</label>
+              <input
+                id="usuario-apellido"
+                required
+                value={formulario.last_name}
+                onChange={(e) => setFormulario({
+                  ...formulario,
+                  last_name: e.target.value
+                })}
+              />
 
-                  <label>Correo electr├│nico</label>
-                  <input type="email" required value={formulario.email}
-                    onChange={e => setFormulario({
-                      ...formulario, email: e.target.value
-                    })} />
+              <label htmlFor="usuario-email">Correo electrónico</label>
+              <input
+                id="usuario-email"
+                type="email"
+                required
+                value={formulario.email}
+                onChange={(e) => setFormulario({
+                  ...formulario,
+                  email: e.target.value
+                })}
+              />
 
-                  {modo === "crear" && (
-                    <>
-                      <label>Rol</label>
-                      <select value={formulario.rol}
-                        onChange={e => setFormulario({
-                          ...formulario, rol: e.target.value
-                        })}>
-                        <option value="CLIENTE">Cliente</option>
-                        <option value="ADMIN">Administrador</option>
-                      </select>
-                    </>
-                  )}
+              {modo === "crear" && (
+                <>
+                  <label htmlFor="usuario-rol">Rol</label>
+                  <select
+                    id="usuario-rol"
+                    value={formulario.rol}
+                    onChange={(e) => setFormulario({
+                      ...formulario,
+                      rol: e.target.value
+                    })}
+                  >
+                    <option value="CLIENTE">Cliente</option>
+                    <option value="ADMIN">Administrador</option>
+                  </select>
+                </>
+              )}
 
                   {error && <div className="alerta error">{error}</div>}
 
