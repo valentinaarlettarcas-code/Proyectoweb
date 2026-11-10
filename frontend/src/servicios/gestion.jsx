@@ -19,8 +19,10 @@ export const login = async (email, password) => {
     const r = await api.post('login/', { email, password });
     const data = r.data;
     if (data.token) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('usuario', JSON.stringify(data.usuario));
+
+    window.dispatchEvent(new Event('sesion-cambiada'));
     }
     return data;
   } catch (error) {

@@ -1,11 +1,23 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { obtenerUsuarioActual, estaAutenticado, logout } from '../servicios/gestion';
 
 function Header() {
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState(obtenerUsuarioActual());
-  const autenticado = estaAutenticado();
+  const autenticado = Boolean(usuario) && estaAutenticado();
+
+  useEffect(() => {
+    const actualizarSesion = () => {
+      setUsuario(obtenerUsuarioActual());
+    };
+
+    window.addEventListener('sesion-cambiada', actualizarSesion);
+
+    return () => {
+      window.removeEventListener('sesion-cambiada', actualizarSesion);
+    };
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -77,7 +89,7 @@ function Header() {
         {autenticado && usuario ? (
           <>
             <span style={{ color: 'var(--color-texto-secundario)', fontSize: '14px' }}>
-              Hola, {usuario.nombre || usuario.email}
+              Hola, {usuario.nombre || usuario.email} ({usuario.rol})
             </span>
             {usuario.rol === 'ADMIN' && (
               <Link to="/admin" className="boton boton-secundario" style={{ padding: '6px 14px', fontSize: '14px' }}>
