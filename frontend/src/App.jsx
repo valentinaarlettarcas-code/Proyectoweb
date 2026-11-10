@@ -14,6 +14,8 @@ import PanelAdmin from './paginas/PanelAdmin';
 import Contacto from './paginas/Contacto';
 import QuienesSomos from './paginas/QuienesSomos';
 import PanelUsuarios from './paginas/PanelUsuarios';
+import { esAdmin, estaAutenticado } from './servicios/gestion';
+
 
 function App() {
   return (
@@ -30,8 +32,8 @@ function App() {
           <Route path="/resumen" element={<OrdenCompra />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
-          <Route path="/admin" element={<PanelAdmin />} />
-          <Route path="/admin/usuarios" element={<PanelUsuarios />} />
+          <Route path="/admin" element={esAdmin() && estaAutenticado() ? <PanelAdmin /> : <Navigate to="/" replace />} />
+          <Route path="/admin/usuarios" element={esAdmin() && estaAutenticado() ? <PanelUsuarios /> : <Navigate to="/" replace />} />
           <Route path="/contacto" element={<Contacto />} />
           <Route path="/quienes-somos" element={<QuienesSomos />} />
           <Route path="*" element={<Navigate to="/" />} />
