@@ -6,6 +6,7 @@ function Header() {
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState(obtenerUsuarioActual());
   const autenticado = estaAutenticado();
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -13,49 +14,15 @@ function Header() {
     navigate('/login');
   };
 
-  const estiloHeader = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 20px',
-    backgroundColor: 'var(--color-superficie)',
-    borderBottom: '1px solid var(--color-borde)',
-    position: 'sticky',
-    top: 0,
-    zIndex: 100,
-  };
-
-  const estiloLogo = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    textDecoration: 'none',
-  };
-
-  const estiloNav = {
-    display: 'flex',
-    gap: '20px',
-    alignItems: 'center',
-  };
-
-  const estiloLinkNav = {
-    color: 'var(--color-texto-secundario)',
-    textDecoration: 'none',
-    fontSize: '15px',
-  };
-
-  const estiloAuth = {
-    display: 'flex',
-    gap: '12px',
-    alignItems: 'center',
-  };
+  const toggleMenu = () => setMenuAbierto(!menuAbierto);
+  const cerrarMenu = () => setMenuAbierto(false);
 
   return (
-    <header style={estiloHeader}>
-      <Link to="/" style={estiloLogo}>
+    <header className="header">
+      <Link to="/" className="header-logo" onClick={cerrarMenu} aria-label="Inicio Setupverse">
         <img
           src="/isotipo.png"
-          alt="SETUPVERSE"
+          alt="Logo de Setupverse"
           style={{ height: '50px', width: 'auto' }}
           onError={(e) => { e.target.style.display = 'none'; }}
         />
@@ -65,40 +32,49 @@ function Header() {
         </span>
       </Link>
 
-      <nav style={estiloNav}>
-        <Link to="/" style={estiloLinkNav}>Inicio</Link>
-        <Link to="/catalogo" style={estiloLinkNav}>Catálogo</Link>
-        <Link to="/contacto" style={estiloLinkNav}>Contacto</Link>
-        <Link to="/quienes-somos" style={estiloLinkNav}>Quiénes somos</Link>
-        <Link to="/carrito" style={estiloLinkNav}>🛒 Carrito</Link>
-      </nav>
+      <button
+        onClick={toggleMenu}
+        className="header-boton-menu"
+        aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
+        aria-expanded={menuAbierto}
+      >
+        ☰ Menú
+      </button>
 
-      <div style={estiloAuth}>
-        {autenticado && usuario ? (
-          <>
-            <span style={{ color: 'var(--color-texto-secundario)', fontSize: '14px' }}>
-              Hola, {usuario.nombre || usuario.email}
-            </span>
-            {usuario.rol === 'ADMIN' && (
-              <Link to="/admin" className="boton boton-secundario" style={{ padding: '6px 14px', fontSize: '14px' }}>
-                Admin
+      <nav className={`header-nav ${menuAbierto ? 'abierto' : ''}`} aria-label="Navegación principal">
+        <Link to="/" className="header-link-nav" onClick={cerrarMenu}>Inicio</Link>
+        <Link to="/catalogo" className="header-link-nav" onClick={cerrarMenu}>Catálogo</Link>
+        <Link to="/contacto" className="header-link-nav" onClick={cerrarMenu}>Contacto</Link>
+        <Link to="/quienes-somos" className="header-link-nav" onClick={cerrarMenu}>Quiénes somos</Link>
+        <Link to="/carrito" className="header-link-nav" onClick={cerrarMenu}>🛒 Carrito</Link>
+
+        <div className="header-auth">
+          {autenticado && usuario ? (
+            <>
+              <span className="header-usuario" aria-label={`Hola ${usuario.nombre || usuario.email}`}>
+                Hola, {usuario.nombre || usuario.email}
+              </span>
+              {usuario.rol === 'ADMIN' && (
+                <Link to="/admin" className="boton boton-secundario" style={{ padding: '6px 14px', fontSize: '14px' }} onClick={cerrarMenu}>
+                  Admin
+                </Link>
+              )}
+              <button onClick={handleLogout} className="boton boton-error" style={{ padding: '6px 14px', fontSize: '14px' }} aria-label="Cerrar sesión">
+                Cerrar sesión
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="header-link-nav" style={{ color: 'var(--color-primario)' }} onClick={cerrarMenu}>
+                Iniciar sesión
               </Link>
-            )}
-            <button onClick={handleLogout} className="boton boton-error" style={{ padding: '6px 14px', fontSize: '14px' }}>
-              Cerrar sesión
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" style={{ color: 'var(--color-primario)', fontSize: '14px' }}>
-              Iniciar sesión
-            </Link>
-            <Link to="/registro" className="boton boton-primario" style={{ padding: '6px 14px', fontSize: '14px' }}>
-              Crear cuenta
-            </Link>
-          </>
-        )}
-      </div>
+              <Link to="/registro" className="boton boton-primario" style={{ padding: '6px 14px', fontSize: '14px' }} onClick={cerrarMenu}>
+                Crear cuenta
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
     </header>
   );
 }

@@ -448,3 +448,252 @@ button {
     font-size: 32px;
   }
 }
+
+/* ===== Accesibilidad y responsividad ===== */
+
+/* Foco visible para navegación con teclado */
+*:focus-visible {
+  outline: 3px solid var(--color-primario);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Links con foco visible */
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--color-primario);
+  outline-offset: 2px;
+}
+
+/* Inputs con foco visible */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--color-primario);
+  outline-offset: 0;
+}
+
+/* Responsive: pantallas grandes (1440px+) */
+@media (min-width: 1440px) {
+  .contenedor {
+    max-width: 1300px;
+  }
+}
+
+/* Responsive: pantallas medianas (768px - 1024px) */
+@media (max-width: 1024px) {
+  .detalle-producto {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive: pantallas pequeñas (móvil 360px - 768px) */
+@media (max-width: 768px) {
+  .contenedor {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 40px 16px;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+  }
+
+  .hero p {
+    font-size: 16px;
+  }
+
+  .grilla,
+  .grilla-categorias {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .filtros {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filtros input[type="text"] {
+    min-width: 0;
+  }
+
+  .detalle-producto {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .detalle-producto-galeria-imagen-principal {
+    height: 250px;
+  }
+
+  .detalle-producto-galeria-miniaturas {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .paginacion {
+    flex-wrap: wrap;
+  }
+
+  .formulario {
+    gap: 10px;
+  }
+
+  .campo input,
+  .campo textarea {
+    padding: 10px;
+    font-size: 16px; /* evita zoom en iOS */
+  }
+}
+
+/* Responsive: pantallas muy pequeñas (360px) */
+@media (max-width: 480px) {
+  .contenedor {
+    padding: 8px;
+  }
+
+  .hero h1 {
+    font-size: 24px;
+  }
+
+  .boton {
+    width: 100%;
+    padding: 12px;
+  }
+}
+
+/* Saltar al contenido principal  */
+.saltar-contenido {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-primario);
+  color: white;
+  padding: 10px 20px;
+  z-index: 9999;
+  border-radius: 0 0 6px 0;
+}
+
+.saltar-contenido:focus {
+  left: 0;
+}
+
+/* Ocultar visualmente pero mantener para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===== Header responsive ===== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background-color: var(--color-superficie);
+  border-bottom: 1px solid var(--color-borde);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.header-boton-menu {
+  display: none;
+  padding: 8px 12px;
+  background-color: var(--color-superficie-2);
+  color: var(--color-texto);
+  border: 1px solid var(--color-borde);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.header-nav {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.header-link-nav {
+  color: var(--color-texto-secundario);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.header-link-nav:hover {
+  color: var(--color-texto);
+}
+
+.header-auth {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.header-usuario {
+  color: var(--color-texto-secundario);
+  font-size: 14px;
+}
+
+/* En pantallas medianas y grandes (>= 769px) el menú siempre visible */
+@media (min-width: 769px) {
+  .header-nav {
+    display: flex !important;
+  }
+}
+
+/* En pantallas pequeñas (móvil <= 768px) menú hamburguesa */
+@media (max-width: 768px) {
+  .header-boton-menu {
+    display: block;
+  }
+
+  /* Por defecto el nav está oculto en móvil */
+  .header-nav {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    width: 100%;
+    padding: 12px 0;
+    border-top: 1px solid var(--color-borde);
+    margin-top: 12px;
+  }
+
+  /* Cuando se abre el menú, lo mostramos */
+  .header-nav.abierto {
+    display: flex;
+  }
+
+  .header-auth {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+}
+
+/* Móvil muy pequeño */
+@media (max-width: 480px) {
+  .header {
+    padding: 10px 12px;
+  }
+}
