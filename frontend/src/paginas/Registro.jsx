@@ -76,6 +76,7 @@ function Registro() {
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             required
+            maxLength="100"
           />
         </div>
 
@@ -87,6 +88,7 @@ function Registro() {
             value={apellido}
             onChange={(e) => setApellido(e.target.value)}
             required
+            maxLength="100"
           />
         </div>
 
@@ -98,6 +100,7 @@ function Registro() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            maxLength="254"
           />
         </div>
 
