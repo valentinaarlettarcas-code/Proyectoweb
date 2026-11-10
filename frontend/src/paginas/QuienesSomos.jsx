@@ -1,4 +1,20 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { obtenerContenidoPublico } from '../servicios/contenidos';
+
 function QuienesSomos() {
+  const [contenido, setContenido] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const data = await obtenerContenidoPublico('quienes-somos');
+      setContenido(data);
+    })();
+  }, []);
+
+  const titulo = contenido?.titulo || 'Sobre Setupverse';
+  const cuerpo = contenido?.cuerpo || 'Nacimos para que armar tu setup perfecto sea simple, accesible y sin sorpresas.';
+
   const valores = [
     {
       titulo: 'Calidad primero',
@@ -8,7 +24,7 @@ function QuienesSomos() {
     {
       titulo: 'Soporte real',
       descripcion: 'Respuesta en menos de 24 horas hábiles. Si algo falla, lo solucionamos sin vueltas.',
-      icono: '📞'
+      icono: '🛟'
     },
     {
       titulo: 'Envíos en Chile',
@@ -17,15 +33,11 @@ function QuienesSomos() {
     },
   ];
 
-  const equipo = [
-    { nombre: 'Equipo Setupverse', rol: 'Fundadores', descripcion: 'Apasionados por la tecnología y el gaming que decidieron crear la tienda que les hubiera gustado tener.' },
-  ];
-
   return (
     <div className="contenedor">
       <section className="hero">
-        <h1>Sobre Setupverse</h1>
-        <p>Nacimos para que armar tu setup perfecto sea simple, accesible y sin sorpresas.</p>
+        <h1>{titulo}</h1>
+        <p>{cuerpo}</p>
       </section>
 
       <section className="seccion">
@@ -59,27 +71,14 @@ function QuienesSomos() {
         </div>
       </section>
 
-      <section className="seccion">
-        <h2>El equipo</h2>
-        <div className="grilla-categorias">
-          {equipo.map((e) => (
-            <div key={e.nombre} className="tarjeta">
-              <h3 style={{ marginBottom: '6px' }}>{e.nombre}</h3>
-              <p style={{ color: 'var(--color-primario)', marginBottom: '10px', fontSize: '14px' }}>{e.rol}</p>
-              <p className="texto-secundario" style={{ fontSize: '14px' }}>{e.descripcion}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <section className="seccion texto-centrado">
         <h2>¿Quieres saber más?</h2>
         <p className="texto-secundario" style={{ marginBottom: '20px' }}>
           Visita nuestro catálogo o contáctanos directamente.
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <a href="/catalogo" className="boton boton-primario">Ver catálogo</a>
-          <a href="/contacto" className="boton boton-secundario">Contactarnos</a>
+          <Link to="/catalogo" className="boton boton-primario">Ver catálogo</Link>
+          <Link to="/contacto" className="boton boton-secundario">Contactarnos</Link>
         </div>
       </section>
     </div>

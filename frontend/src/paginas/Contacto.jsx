@@ -1,29 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { enviarMensaje } from '../servicios/contactos';
+import { obtenerContenidoPublico } from '../servicios/contenidos';
 
 function Contacto() {
-  const [form, setForm] = useState({ nombre: '', email: '', mensaje: '' });
+  const [contenido, setContenido] = useState(null);
+  const [form, setForm] = useState({ nombre: '', correo: '', mensaje: '' });
   const [errores, setErrores] = useState({});
   const [enviando, setEnviando] = useState(false);
   const [exito, setExito] = useState(false);
 
-  const validar = () => {
-    const e = {};
-    if (!form.nombre || form.nombre.trim().length < 2) {
-      e.nombre = 'El nombre debe tener al menos 2 caracteres.';
-    } else if (form.nombre.trim().length > 100) {
-      e.nombre = 'El nombre no puede superar 100 caracteres.';
-    }
-    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      e.email = 'Ingresa un correo válido.';
-    }
-    if (!form.mensaje || form.mensaje.trim().length < 10) {
-      e.mensaje = 'El mensaje debe tener al menos 10 caracteres.';
-    } else if (form.mensaje.trim().length > 2000) {
-      e.mensaje = 'El mensaje no puede superar 2000 caracteres.';
-    }
-    setErrores(e);
-    return Object.keys(e).length === 0;
-  };
+  useEffect(() => {
+    (async () => {
+      const data = await obtenerContenidoPublico('contacto');
+      setContenido(data);
+    })();
+  }, []);
+
+  const titulo = contenido?.titulo || 'Contacto';
+  const cuerpo = contenido?.cuerpo || '¿Tienes preguntas? Escríbenos y te responderemos a la brevedad.';
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -32,17 +26,21 @@ function Contacto() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (enviando) return;
-    if (!validar()) return;
-
+    setErrores({});
     setEnviando(true);
+
     try {
-      // PENDIENTE llamar al backend /api/contacto/ cuando este disponible
-      await new Promise((r) => setTimeout(r, 500));
+      await enviarMensaje(form);
       setExito(true);
-      setForm({ nombre: '', email: '', mensaje: '' });
-      setEnviando(false);
+      setForm({ nombre: '', correo: '', mensaje: '' });
     } catch (err) {
-      setErrores({ mensaje: 'No se pudo enviar el mensaje. Intenta nuevamente.' });
+      const data = err.response?.data;
+      if (data && typeof data === 'object') {
+        setErrores(data);
+      } else {
+        setErrores({ general: err.message || 'No se pudo enviar el mensaje.' });
+      }
+    } finally {
       setEnviando(false);
     }
   };
@@ -56,8 +54,7 @@ function Contacto() {
         </div>
         <button
           onClick={() => setExito(false)}
-          className="boton boton-secundario"
-          style={{ marginTop: '15px' }}
+          className="boton boton-secundario margin-top"
         >
           Enviar otro mensaje
         </button>
@@ -67,10 +64,10 @@ function Contacto() {
 
   return (
     <div className="contenedor" style={{ maxWidth: '600px' }}>
-      <h1>Contacto</h1>
-      <p className="texto-secundario" style={{ marginBottom: '20px' }}>
-        ¿Tienes preguntas? Escríbenos y te responderemos a la brevedad.
-      </p>
+      <h1 style={{ marginBottom: '20px' }}>{titulo}</h1>
+      <p className="texto-secundario" style={{ marginBottom: '20px' }}>{cuerpo}</p>
+
+      {errores.general && <div className="mensaje-error">{errores.general}</div>}
 
       <form onSubmit={handleSubmit} className="formulario">
         <div className="campo">
@@ -81,21 +78,32 @@ function Contacto() {
             name="nombre"
             value={form.nombre}
             onChange={handleChange}
-            maxLength={100}
+            required
+            minLength="2"
+            maxLength="100"
           />
-          {errores.nombre && <span className="producto-stock-agotado" style={{ fontSize: '13px' }}>{errores.nombre}</span>}
+          {errores.nombre && (
+            <span className="producto-stock-agotado" style={{ fontSize: '13px' }}>
+              {errores.nombre}
+            </span>
+          )}
         </div>
 
         <div className="campo">
-          <label htmlFor="email">Correo</label>
+          <label htmlFor="correo">Correo</label>
           <input
             type="email"
-            id="email"
-            name="email"
-            value={form.email}
+            id="correo"
+            name="correo"
+            value={form.correo}
             onChange={handleChange}
+            required
           />
-          {errores.email && <span className="producto-stock-agotado" style={{ fontSize: '13px' }}>{errores.email}</span>}
+          {errores.correo && (
+            <span className="producto-stock-agotado" style={{ fontSize: '13px' }}>
+              {errores.correo}
+            </span>
+          )}
         </div>
 
         <div className="campo">
@@ -105,12 +113,15 @@ function Contacto() {
             name="mensaje"
             value={form.mensaje}
             onChange={handleChange}
-            maxLength={2000}
+            required
+            minLength="10"
+            maxLength="2000"
           />
-          {errores.mensaje && <span className="producto-stock-agotado" style={{ fontSize: '13px' }}>{errores.mensaje}</span>}
-          <span className="texto-secundario" style={{ fontSize: '12px' }}>
-            {form.mensaje.length}/2000 caracteres
-          </span>
+          {errores.mensaje && (
+            <span className="producto-stock-agotado" style={{ fontSize: '13px' }}>
+              {errores.mensaje}
+            </span>
+          )}
         </div>
 
         <button
@@ -126,7 +137,7 @@ function Contacto() {
         <h2>Información de contacto</h2>
         <div className="tarjeta" style={{ padding: '20px' }}>
           <p style={{ marginBottom: '8px' }}><strong>Email:</strong> soporte@setupverse.cl</p>
-          <p style={{ marginBottom: '8px' }}><strong>Teléfono:</strong> +56 9 1234 5679</p>
+          <p style={{ marginBottom: '8px' }}><strong>Teléfono:</strong> +56 2 2345 6789</p>
           <p style={{ marginBottom: '8px' }}><strong>Horario:</strong> Lunes a Viernes, 9:00 - 18:00</p>
           <p><strong>Dirección:</strong> Av. Providencia 1234, Santiago, Chile</p>
         </div>

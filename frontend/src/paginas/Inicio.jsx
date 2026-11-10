@@ -1,6 +1,17 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { obtenerContenidoPublico } from '../servicios/contenidos';
 
 function Inicio() {
+  const [contenido, setContenido] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const data = await obtenerContenidoPublico('inicio');
+      setContenido(data);
+    })();
+  }, []);
+
   const categorias = [
     { nombre: 'Teclados', icono: '⌨️' },
     { nombre: 'Mouse', icono: '🖱️' },
@@ -15,14 +26,19 @@ function Inicio() {
     { id: 4, nombre: 'Mousepad XL', precio: 12000 },
   ];
 
+  // Valores por defecto si no hay contenido en el backend
+  const titulo = contenido?.titulo || 'Bienvenido a SETUPVERSE';
+  const cuerpo = contenido?.cuerpo || 'Accesorios tech y gaming para armar tu setup perfecto';
+
   return (
     <div className="contenedor">
       <section className="hero">
         <h1>
-          Bienvenido a <span style={{ color: 'var(--color-texto)' }}>SETUP</span>
-          <span style={{ color: 'var(--color-primario)' }}>VERSE</span>
+          {titulo === 'Bienvenido a SETUPVERSE' ? (
+            <>Bienvenido a <span style={{ color: 'var(--color-secundario)' }}>SETUP</span><span style={{ color: 'var(--color-primario)' }}>VERSE</span></>
+          ) : titulo}
         </h1>
-        <p>Accesorios tech y gaming para armar tu setup perfecto</p>
+        <p>{cuerpo}</p>
         <Link to="/catalogo" className="boton boton-primario">Ver catálogo</Link>
       </section>
 
