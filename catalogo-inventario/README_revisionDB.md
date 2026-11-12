@@ -1,59 +1,60 @@
-Avance 3: Infraestructura de Base de Datos y Catálogo
+# Avance 3: Infraestructura de Base de Datos y Catálogo
 
 En este avance logramos configurar la infraestructura de la base de datos y validar todas las reglas de negocio exigidas para el catálogo de productos (paginación, filtros y control de stock).
 
-Lo que se cumplió en este avance
+## Lo que se cumplió en este avance
 
-Infraestructura con Replica Set: Configuramos MongoDB usando Docker Compose con 3 nodos. Activamos el Replica Set (rs_catalogo) para poder soportar transacciones multidocumento, lo cual probamos con éxito en el nodo primario.
+- **Infraestructura con Replica Set:** Configuramos MongoDB usando Docker Compose con 3 nodos. Activamos el Replica Set (`rs_catalogo`) para soportar transacciones multidocumento en reservas de stock.
+- **Modelo de datos:** Poblamos la base de datos `catalogo_db` respetando el esquema definido en `modelo_producto.json`, donde el stock se maneja con el formato `{reservado, disponible}` y el estado del producto es un booleano (`activo`).
+- **Lógica del catálogo público:** Construimos una consulta (Aggregation Pipeline) que demuestra que la base de datos filtra productos activos, aplica paginación de hasta 50 productos y detecta dinámicamente cuáles están agotados si su stock disponible llega a `0`.
 
-Modelo de datos: Poblamos la base de datos catalogo_db respetando el esquema definido en modelo_producto.json, donde el stock se maneja con el formato {reservado, disponible} y el estado del producto es un booleano (activo).
+## Pasos para ejecutar y probar el proyecto en desarrollo local
 
-Lógica del catálogo público: Construimos una consulta (Aggregation Pipeline) que demuestra que la base de datos ya es capaz de traer un máximo de 50 productos, filtrar solo los que están activos y detectar dinámicamente cuáles están "agotados" si su stock disponible llega a 0.
+> **Advertencia:** El archivo `docker-compose.yml` de esta carpeta es **exclusivamente para desarrollo local**. No tiene autenticación configurada y publica los puertos (`27027`, `27028`, `27029`) en el equipo anfitrión.
 
-Pasos para ejecutar y probar el proyecto
+Para revisar este avance desde un clon limpio, ejecutar los siguientes pasos desde `catalogo-inventario/`:
 
-Para revisar este avance a nivel local, se deben seguir estos pasos en la terminal:
+1. **Levantar los tres contenedores de MongoDB:**
 
-Levantar los contenedores de la base de datos:
-docker-compose up -d
+       docker compose up -d
 
-Entrar al nodo principal (Primary) especificando su puerto:
-docker exec -it mongo_catalogo_3 mongosh --port 27019
+2. **Inicializar el Replica Set `rs_catalogo`** (el `docker-compose.yml` solo levanta los nodos y no ejecuta la inicialización automáticamente; este paso es obligatorio para que funcionen las transacciones de reserva):
 
-Cambiar a la base de datos del proyecto:
-use catalogo_db
+       docker exec -it mongo_catalogo_1 mongosh --eval "rs.initiate({_id: 'rs_catalogo', members: [{_id: 0, host: 'mongo1:27017'}, {_id: 1, host: 'mongo2:27018'}, {_id: 2, host: 'mongo3:27019'}]})"
 
-Cargar los datos de prueba ejecutando el código del script poblar_bd.js.
+   *(Se puede verificar que quedó activo un nodo `PRIMARY` y dos `SECONDARY` ejecutando `docker exec -it mongo_catalogo_1 mongosh --eval "rs.status()"`).*
 
-Para verificar el funcionamiento de las reglas del catálogo, pegar esta consulta en la consola de Mongo. Esto aplicará los filtros, la paginación de 50 ítems y creará el campo de "agotado" al vuelo:
+3. **Crear los índices y cargar los datos iniciales con sus imágenes:**
 
-db.productos.aggregate([
-{ $match: { activo: true } },
-{ $addFields: {
-agotado: { $eq: ["$stock.disponible", 0] },
-galeria: { $ifNull: ["$galeria", ["imagen_frontal.jpg", "imagen_lateral.jpg"]] }
-}},
-{ $limit: 50 }
-])
+       docker exec -i mongo_catalogo_1 mongosh < indices.js
+       docker exec -i mongo_catalogo_1 mongosh < poblar_bd.js
 
-Conexión para Integración con Otros Módulos
+   *(Nota: Si el nodo primario elegido fue `mongo_catalogo_2` en puerto `27018` o `mongo_catalogo_3` en puerto `27019`, ejecutar `mongosh --port 27018` o `mongosh --port 27019` según corresponda).*
 
-Para que otros módulos se conecten a esta base de datos en el entorno de desarrollo local, se debe configurar la siguiente variable en el archivo .env:
+4. **Verificar el funcionamiento de las reglas del catálogo en consola:**
+   Entrar a `mongosh` en el nodo primario, seleccionar `use catalogo_db` y ejecutar:
 
-Si el backend corre directamente en el sistema operativo (Windows/Mac/Linux, fuera de Docker):
+       db.productos.aggregate([
+         { $match: { activo: true } },
+         { $addFields: {
+           agotado: { $eq: ["$stock.disponible", 0] },
+           galeria: { $ifNull: ["$galeria", ["imagen_frontal.jpg", "imagen_lateral.jpg"]] }
+         }},
+         { $limit: 50 }
+       ])
 
-CATALOGO_MONGO_URI="mongodb://localhost:27027,localhost:27028,localhost:27029/catalogo_db?replicaSet=rs_catalogo"
+## Conexión para Integración con Otros Módulos
 
+Para que otros módulos se conecten a esta base de datos en desarrollo local, configurar en el archivo `.env`:
 
-Si el backend corre dentro de un contenedor Docker compartiendo la misma red:
+- **Si el backend corre directamente en el sistema operativo (fuera de Docker):**
 
-CATALOGO_MONGO_URI="mongodb://mongo_catalogo_1:27017,mongo_catalogo_2:27017,mongo_catalogo_3:27017/catalogo_db?replicaSet=rs_catalogo"
+      CATALOGO_MONGO_URI="mongodb://localhost:27027,localhost:27028,localhost:27029/catalogo_db?replicaSet=rs_catalogo"
 
+- **Si el backend corre dentro de un contenedor Docker compartiendo la misma red:**
 
-Decisión de Arquitectura para Producción
+      CATALOGO_MONGO_URI="mongodb://mongo1:27017,mongo2:27018,mongo3:27019/catalogo_db?replicaSet=rs_catalogo"
 
-Para el entorno en la nube, hemos decidido utilizar MongoDB Atlas (Clúster M0 - Free Tier).
+## Decisión de Arquitectura para Producción
 
-La razón técnica principal es que este plan gratuito levanta automáticamente la base de datos como un
-Replica Set.Esto nos asegura que las transacciones multidocumento funcionarán de forma nativa
-en la nube, ahorrándonos el problema de tener que configurar y mantener nodos de Docker manualmente en un VPS.
+Para el entorno en la nube, hemos decidido utilizar **MongoDB Atlas (Clúster M0 - Free Tier)**, ya que levanta automáticamente la base de datos como un Replica Set y asegura el soporte nativo de transacciones multidocumento sin tener que administrar nodos Docker manualmente.
