@@ -724,3 +724,207 @@ Pendiente:
 - Revisar los wireframes.
 - Validar las respuestas mediante pruebas.
 - Obtener aprobación del Pull Request.
+
+
+## 22. Contratos JSON de contenidos, temas y contacto
+
+Esta sección documenta los campos de entrada y salida
+de los endpoints de Gestión según los serializers
+implementados en Django REST Framework.
+
+### 22.1. Contrato de contenidos
+
+**Endpoints:**
+- GET /api/contenidos/
+- POST /api/contenidos/
+- GET /api/contenidos/{id}/
+- PUT /api/contenidos/{id}/
+- PATCH /api/contenidos/{id}/
+- DELETE /api/contenidos/{id}/
+
+**Acceso:** ADMIN activo.
+
+El serializer ContenidoSerializer utiliza los campos:
+
+| Campo | Características |
+|---|---|
+| id | Solo lectura |
+| pagina | Valor definido en Contenido.Pagina |
+| clave | Slug, máximo 50 caracteres |
+| tipo | Valor definido en Contenido.Tipo |
+| titulo | Texto, máximo 200 caracteres |
+| cuerpo | Texto, máximo 2000 caracteres |
+| imagen_url | URL HTTP/HTTPS o ruta interna |
+| texto_alternativo | Texto, máximo 200 caracteres |
+| enlace_url | URL HTTP/HTTPS o ruta interna |
+| orden | Orden de visualización |
+| activo | Estado de publicación |
+| fecha_creacion | Solo lectura |
+| fecha_actualizacion | Solo lectura |
+
+Los campos obligatorios dependen del tipo de contenido:
+
+| Tipo | Campos obligatorios |
+|---|---|
+| texto | cuerpo |
+| imagen | imagen_url, texto_alternativo |
+| enlace | titulo, enlace_url |
+| banner | titulo, imagen_url, texto_alternativo |
+
+Las URL admiten direcciones HTTP/HTTPS o rutas internas
+que empiecen por "/" y no por "//".
+
+Los campos no válidos generan errores HTTP 400.
+
+**Contenido público:**
+
+GET /api/contenidos/publico/{pagina}/
+
+Acceso: público.
+
+Devuelve únicamente contenidos activos de la página
+solicitada, ordenados por orden e id.
+
+ContenidoPublicoSerializer devuelve:
+- pagina
+- clave
+- tipo
+- titulo
+- cuerpo
+- imagen_url
+- texto_alternativo
+- enlace_url
+- orden
+
+No expone id, activo ni fechas.
+
+Una página no reconocida devuelve HTTP 404.
+
+### 22.2. Contrato de temas
+
+**Consultar temas:**
+
+GET /api/temas/
+
+Acceso: público.
+
+**Consultar tema activo:**
+
+GET /api/temas/activo/
+
+Acceso: público.
+
+TemaSerializer devuelve identificador y nombre.
+
+Ejemplo de respuesta:
+
+```json
+{
+  "identificador": "tema-ejemplo",
+  "nombre": "Tema de ejemplo"
+}
+```
+
+El identificador es ilustrativo y debe existir
+en la base de datos para ser utilizado.
+
+**Seleccionar tema:**
+
+POST /api/temas/seleccionar/
+
+Acceso: ADMIN activo.
+
+Solicitud JSON:
+
+```json
+{
+  "tema": "tema-ejemplo"
+}
+```
+
+El campo tema es obligatorio y debe corresponder
+al identificador de un tema existente.
+
+Respuesta correcta: HTTP 200.
+
+El servidor devuelve identificador y nombre
+del tema seleccionado.
+
+Un identificador inexistente genera un error
+de validación HTTP 400.
+
+### 22.3. Contrato de contacto
+
+**Enviar mensaje:**
+
+POST /api/contacto/enviar/
+
+Acceso: público.
+
+Solicitud JSON:
+
+```json
+{
+  "nombre": "Ana Pérez",
+  "correo": "ana@example.com",
+  "mensaje": "Quisiera consultar la disponibilidad de un producto."
+}
+```
+
+Validaciones:
+- nombre: entre 2 y 100 caracteres.
+- correo: según las restricciones del modelo.
+- mensaje: entre 10 y 2000 caracteres.
+
+Respuesta correcta HTTP 201:
+
+```json
+{
+  "detalle": "Mensaje recibido correctamente."
+}
+```
+
+Respuesta HTTP 503 ante un error de base de datos:
+
+```json
+{
+  "detalle": "No se pudo registrar el mensaje. Intenta nuevamente."
+}
+```
+
+Los errores de validación generan HTTP 400.
+
+**Consultar mensajes:**
+
+GET /api/contacto/mensajes/
+
+Acceso: ADMIN activo.
+
+Devuelve los mensajes ordenados por fecha_recepcion
+descendente e id descendente.
+
+**Consultar mensaje individual:**
+
+GET /api/contacto/mensajes/{id}/
+
+Acceso: ADMIN activo.
+
+MensajeContactoSerializer devuelve:
+- id
+- nombre
+- correo
+- mensaje
+- fecha_recepcion
+
+Si el mensaje no existe, devuelve HTTP 404.
+
+### 22.4. Estado de verificación
+
+Los campos y validaciones anteriores se han contrastado
+con los serializers de contenidos, temas y contacto.
+
+Los ejemplos JSON utilizan datos ilustrativos.
+
+La documentación de importación CSV y la validación
+integral de los endpoints siguen pendientes.
+```
